@@ -1,0 +1,20 @@
+> **Decisión vigente:** la página es automática por gimnasio y se consulta por slug. No existe flujo manual de publicar/despublicar. Véase `docs/DECISION_LANDING_ENLACE_DIRECTO.md` para los contratos actuales; las referencias históricas a snapshots/publicación describen la integración anterior.
+
+# Seguridad y base de datos
+
+- **Esquema**: `schema_db` (alias `SCHEMA_DB`) configura Hibernate `default_schema`, Flyway `schemas`/placeholder y SQL JDBC con `search_path`. Solo identificador validado `[a-z_][a-z0-9_]{0,62}`. No aceptar schema DB desde rutas.
+- **Modelo de identidad**: `users` es GLOBAL, `platform_admins` es rol de administrador de plataforma, `gym_staff_roles` contiene owner/trainer por gimnasio, `gym_members` determina membresía/rol member por gym. Una persona puede ser trainer en A, member en B y owner en C.
+- **Alta manual**: cuentas globales creadas por SQL fuera de esta API, **en estado active y con hash BCrypt**. `POST /members` y `POST /staff` solo referencian ese UUID; se rechazará usuario ausente o inactivo. No se crean usuarios `invited` desde esos módulos. Recuperación/activación quedan pendientes.
+- **Login seguro**: la selección de gym se ofrece **tras validar credenciales**; nunca exponer una consulta anónima de gimnasios por email. JWT HS256 (`JWT_SECRET` con al menos 32 bytes aleatorios), TTL 1 hora. `/auth/me` reconstruye la misma lista de gimnasios/roles y valida cuenta activa. Al iniciar sesión, el usuario elige gym en frontend; en cada HTTP endpoint servidor autoriza el `gymId` recibido.
+- **Roles y autorización**: el `admin` global ve gimnasios activos y acceso técnico; roles owner/trainer/member se obtienen **de DB por gym**. Roles activos múltiples son válidos. La matriz fina de permisos (qué hace cada rol en cada módulo) **está pendiente de confirmación**; restricciones presentes en services son provisionales y deben probarse antes de publicación.
+- **Aislamiento**: BaseCRUD verifica gymId, cada SQL JDBC tenant exige gym_id; no usar un `SELECT` por UUID global sin comprobar tenant en un caso de uso de gym. Agregar pruebas multi-tenant con PostgreSQL antes de producción.
+- **Privacidad**: no emitir `password_hash`; cambiar datos personales globales no es una modificación permitida del expediente de gym. `GET /members` requiere owner/trainer bajo política provisional.
+- **Transacciones**: `@Transactional` en services; venta usa `FOR UPDATE` para stock; reservas lock de clase; dinero con `BigDecimal`. Ventas incluyen ítems persistidos y precios server-side, no se confía en carrito.
+- **Pagos**: registros manuales administrativos, sin pasarela, sin tokens de tarjeta, sin refund ni endpoint de anulación, por decisión explícita.
+- **Migraciones**: V1 es la creación base (propuesta SQL). V2 amplía CHECK `category` para `functional` en `class_templates` y `gym_classes`. No editar V1 después de aplicada. Probar ambas migraciones en DB temporal antes de despliegue. Requiere privilegios para extensiones `citext` y `pgcrypto`, o aprovisionarlas previamente.
+- **Auditoría**: stamps solo si la tabla tiene columnas; `audit_events` transversal aún sin lógica completa. No declarar implementación de histórico automático.
+- **CORS**: configurar `FRONTEND_ORIGIN` explícito. Usar HTTPS fuera del entorno local. `.env` no se versiona con credenciales reales. `BOOTSTRAP_ADMIN_*` es opción inicial, dejar vacío si todos se insertan por SQL.
+
+## Aplicación de la especificación nueva (03/11/2026)
+
+Solo `GET /api/v1/public/gyms/*/landing` admite anónimo. El contenido público sale de los `landing_blocks` habilitados del gimnasio activo y muestra la configuración guardada; no se filtran usuarios, pagos o medios privados. `USER_API_ENABLED=false` conserva alta de cuentas por SQL; cambiar a true exige aprobación y pruebas de seguridad/multi-tenant. La búsqueda por email de owner no enumera cuentas de otros gyms: se limita a usuarios ya vinculados a ese gimnasio, mientras la búsqueda global queda reservada a admin. Se conserva V3 como migración histórica compatible con Flyway, pero la lectura pública no depende de la tabla de snapshots; no existe borrado lógico ni se han cambiado V1/V2.
