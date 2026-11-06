@@ -42,7 +42,35 @@ public class ServiceFactory {
 
  @Bean public com.gymback.modules.payments.services.PaymentService paymentService(com.gymback.modules.payments.interfaces.IPaymentRepository repo,AuthorizationService auth){return new com.gymback.modules.payments.services.PaymentService(repo,auth);}
  @Bean public com.gymback.modules.pos.services.SaleService saleService(com.gymback.modules.pos.interfaces.ISaleRepository repo,AuthorizationService auth){return new com.gymback.modules.pos.services.SaleService(repo,auth);}
- @Bean public com.gymback.modules.checkin.services.CheckinService checkinService(com.gymback.modules.checkin.interfaces.ICheckinRepository repo,AuthorizationService auth){return new com.gymback.modules.checkin.services.CheckinService(repo,auth);}
+ @Bean public com.gymback.modules.checkin.services.MemberAccessPolicy memberAccessPolicy(com.gymback.modules.checkin.interfaces.ICheckinRepository repo){
+  return new com.gymback.modules.checkin.services.MemberAccessPolicy(repo);
+ }
+ @Bean public com.gymback.modules.checkin.services.CheckinQrService checkinQrService(
+  com.gymback.modules.checkin.interfaces.ICheckinQrTokenRepository tokens,
+  com.gymback.modules.checkin.interfaces.ICheckinDeviceRepository devices,
+  com.gymback.modules.checkin.interfaces.ICheckinContextRepository context,
+  com.gymback.modules.checkin.services.CheckinCrypto crypto){
+  return new com.gymback.modules.checkin.services.CheckinQrService(tokens,devices,context,crypto);
+ }
+ @Bean public com.gymback.modules.checkin.services.KioskDeviceService kioskDeviceService(
+  com.gymback.modules.checkin.interfaces.ICheckinDeviceRepository devices,
+  com.gymback.modules.checkin.interfaces.ICheckinDeviceSessionRepository sessions,
+  com.gymback.modules.checkin.interfaces.ICheckinQrTokenRepository tokens,
+  com.gymback.modules.checkin.interfaces.ICheckinContextRepository context,
+  com.gymback.security.IIdentityRepository identity,AuthorizationService auth,
+  com.gymback.modules.checkin.services.CheckinCrypto crypto,
+  com.gymback.modules.checkin.services.ActivationAbuseService abuse){
+  return new com.gymback.modules.checkin.services.KioskDeviceService(devices,sessions,tokens,context,identity,auth,crypto,abuse);
+ }
+ @Bean public com.gymback.modules.checkin.services.CheckinService checkinService(
+  com.gymback.modules.checkin.interfaces.ICheckinRepository repo,AuthorizationService auth,
+  com.gymback.modules.checkin.services.MemberAccessPolicy policy,
+  com.gymback.modules.checkin.services.CheckinQrService qr,
+  com.gymback.modules.checkin.services.CheckinCrypto crypto,
+  com.gymback.modules.checkin.interfaces.ICheckinContextRepository context,
+  com.gymback.modules.checkin.interfaces.ICheckinAccessCodeRepository accessCodes){
+  return new com.gymback.modules.checkin.services.CheckinService(repo,auth,policy,qr,crypto,context,accessCodes);
+ }
  @Bean public com.gymback.modules.settings.services.SettingsService settingsService(com.gymback.modules.settings.interfaces.ISettingsRepository repo,AuthorizationService auth){return new com.gymback.modules.settings.services.SettingsService(repo,auth);}
 
  @Bean public com.gymback.modules.calendar.services.ReservationService reservationService(com.gymback.modules.calendar.interfaces.IReservationRepository repo,AuthorizationService auth){return new com.gymback.modules.calendar.services.ReservationService(repo,auth);}

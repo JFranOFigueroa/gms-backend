@@ -8,6 +8,11 @@ import org.springframework.dao.DataIntegrityViolationException;
 import java.util.*;
 @RestControllerAdvice
 public class ApiExceptionHandler {
+  @ExceptionHandler(RateLimitException.class)
+  ResponseEntity<Map<String,String>> rateLimited(RateLimitException e){
+   return ResponseEntity.status(429).header("Retry-After",Integer.toString(e.getRetryAfterSeconds()))
+    .body(Map.of("error","rate_limited","message",e.getMessage()));
+  }
   @ExceptionHandler(org.springframework.security.authentication.BadCredentialsException.class)
   ResponseEntity<Map<String,String>> badCredentials(Exception e){return ResponseEntity.status(401).body(Map.of("error","unauthorized","message","Credenciales inválidas"));}
   @ExceptionHandler(org.springframework.web.multipart.MaxUploadSizeExceededException.class)

@@ -94,3 +94,16 @@ Se añadieron las rutas de publicación pública y otras consultas/altas guiadas
 ## Actualización auditoría / refresh / archivos (03/11/2026)
 
 La implementación nueva se describe en `docs/CAMBIOS_IMPLEMENTADOS_AUDITORIA.md` y los contratos para Vue/Pinia en `docs/GUIA_FRONTEND_SESION_IMAGENES.md`. La migración **V4** agrega campos de auditoría y soft-delete al esquema, introduce refresh token rotativo y almacenamiento local de imágenes. Las notas antiguas que describían estos módulos como reservados o los archivos como no implementados son históricas, no representan esta entrega. No se reintroduce publicar/despublicar landing: sigue activa por slug. El ZIP no incluye el `pom.xml` original y la integración real debe verificarse con Maven/PostgreSQL antes de desplegar.
+
+## Extensión Check-in QR y kiosco (V5)
+
+- Implementación y decisiones técnicas: `CAMBIOS_IMPLEMENTADOS_CHECKIN_QR.md`.
+- Contratos funcionales para Vue: `docs/CONTRATOS_FRONTEND_CHECKIN_QR.md`.
+- Seguridad, configuración y validación de Flyway: `docs/DESPLIEGUE_CHECKIN_QR_BACKEND.md`.
+- Colección de peticiones HTTP: `docs/POSTMAN_CHECKIN_QR.json`.
+
+Se conservan los endpoints previos de Check-in y los demás módulos. La migración V5 es aditiva; requiere revisar en datos reales las suscripciones sin fecha de vencimiento. No se añadió API de invitaciones, notificaciones persistentes ni controles de publicación de landing.
+
+## Complemento Check-in V6 — código manual, slug y nombres
+
+Se añadió `V6__checkin_one_time_manual_codes.sql` y los dos endpoints de código temporal para miembro y kiosco; `GET /kiosk/session` ahora añade `slug` y el historial privado añade nombres legibles. Ver `CAMBIOS_IMPLEMENTADOS_CHECKIN_V6.md` y `docs/GUIA_FRONTEND_CHECKIN_CODIGO_Y_SESION.md`. Los contratos anteriores de QR y Check-in administrativo permanecen. El ZIP de esta entrega **no incluye `pom.xml`**, aunque alguna nota histórica anterior diga lo contrario; usar el `pom.xml` del proyecto original para compilar/probar.

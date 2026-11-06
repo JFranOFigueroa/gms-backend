@@ -20,5 +20,7 @@ public class CheckinEntry extends AuditedRecord {
   @Column(name="reason_code") public String reasonCode;
   @Column(name="reason_detail") public String reasonDetail;
   @Column(name="visit_date") public LocalDate visitDate;
+  @Column(name="idempotency_key_hash") public String idempotencyKeyHash;
+  @Column(name="request_fingerprint") public String requestFingerprint;
   @Column(name="occurred_at") public OffsetDateTime occurredAt = OffsetDateTime.now();
 }

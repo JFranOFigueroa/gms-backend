@@ -41,6 +41,11 @@ app:
   frontend-origin: ${FRONTEND_ORIGIN:http://localhost:5173}
   public-site-base-url: ${PUBLIC_SITE_BASE_URL:http://localhost:5173}
   user-api-enabled: ${USER_API_ENABLED:false}
+  checkin:
+    # Subclaves separadas por propósito; para producción configurar dos secretos independientes.
+    member-qr-secret: ${CHECKIN_MEMBER_QR_SECRET:${JWT_SECRET:}}
+    kiosk-csrf-secret: ${KIOSK_CSRF_SECRET:${JWT_SECRET:}}
+    cookie-secure: ${KIOSK_COOKIE_SECURE:true}
 
   files:
     root: ${GMS_FILES_ROOT:/var/lib/gms/files}
