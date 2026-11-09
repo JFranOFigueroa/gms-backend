@@ -1,13 +1,16 @@
-> **ESTADO ACTUAL (refactor JPA 03/11/2026):** Se reemplazó el acceso `JdbcTemplate` de los repositorios por JPA/JPQL, conservando BaseCRUD/BaseService y la migración V4. Solo subsiste `set_config` encapsulado en `shared/persistence/repositories/AuditActorRepository` para los triggers PostgreSQL. Ver `docs/REFACTORIZACION_JPA_BUENAS_PRACTICAS.md`. Este ZIP contiene un `pom.xml` reconstruido porque el original nunca se adjuntó; falta verificar `mvn clean test` + PostgreSQL antes de desplegar. Las secciones inferiores que describan JDBC o ausencia de POM son históricas.
+> **ESTADO ACTUAL (integración WildFly EE 11 07/11/2026):** El proyecto se empaqueta como **WAR** para desplegarse en **WildFly 40.0.1.Final-jdk21 estándar (Jakarta EE 11)** usando el datasource JNDI `java:/jdbc/AppDS`, con context root `/gms`. Se migró a **Spring Boot 4.0.9** (Spring Framework 7, Spring Security 7, Hibernate 7, Hibernate Validator 9, Jackson 3, Servlet 6.1), se añadió `ServletInitializer`, perfiles `local`/`wildfly`, descriptores `jboss-web.xml` y `jboss-deployment-structure.xml` (excluye los subsistemas `jpa`, `bean-validation`, `weld` y `jsf`), y se desactivó Flyway por defecto (el esquema lo gestiona Liquibase externamente). El desarrollo local sigue con Tomcat 11 embebido y PostgreSQL vía `mvn -Plocal spring-boot:run`. `mvn -DskipTests=false test` (71 tests, 0 fallos, 17 omitidos) y `mvn -DskipTests package` pasan; **el despliegue real en WildFly aún no se ha validado** en este entorno.
+
+> **ESTADO PREVIO (refactor JPA 03/11/2026):** Se reemplazó el acceso `JdbcTemplate` de los repositorios por JPA/JPQL, conservando BaseCRUD/BaseService y la migración V4. Solo subsiste `set_config` encapsulado en `shared/persistence/repositories/AuditActorRepository` para los triggers PostgreSQL. Ver `docs/REFACTORIZACION_JPA_BUENAS_PRACTICAS.md`. Las secciones inferiores que describan JDBC o ausencia de POM son históricas.
 
 > **Decisión vigente:** la página es automática por gimnasio y se consulta por slug. No existe flujo manual de publicar/despublicar. Véase `docs/DECISION_LANDING_ENLACE_DIRECTO.md` para los contratos actuales; las referencias históricas a snapshots/publicación describen la integración anterior.
 
 # GYM BACK — DOCUMENTO MAESTRO DEL BACKEND
 
 **Archivo maestro para trabajar con cualquier IA:** `README_MASTER_BACKEND.md` (este archivo).  
-**Main ejecutable:** `src/main/java/com/gymback/GymBackApplication.java`.  
-**Actualizado:** 2026-11-03. **Alcance:** únicamente backend Java; frontend Vue no modificado.  
-**Estado de verificación:** cambios implementados en archivos, sin compilación Maven ni pruebas con PostgreSQL real en este entorno. NO declarar integración o producción completadas.
+**Main ejecutable local:** `src/main/java/com/gymback/GymBackApplication.java`.  
+**Punto de entrada WildFly:** `src/main/java/com/gymback/ServletInitializer.java`.  
+**Actualizado:** 2026-11-07. **Alcance:** únicamente backend Java; frontend Vue no modificado.  
+**Estado de verificación:** compilación y tests Maven en verde; despliegue real en WildFly pendiente de validar en el servidor destino.
 
 ## 1. Prompt de continuidad para cualquier IA
 
@@ -60,13 +63,29 @@ Documentación completa en `docs/CONTRATOS_FRONTEND.md`. **No agregar endpoints 
 
 ## 5. Ejecutar y verificar
 
+### 5.1 Desarrollo local (Tomcat embebido + PostgreSQL)
+
 1. JDK 21, Maven 3.9+, PostgreSQL 15+. Asegurar que el rol de DB pueda crear esquema/extensiones o aprovisionarlas previamente.
 2. Configurar `.env` (`DB_*`, `schema_db`, `JWT_SECRET` aleatorio >=32 bytes, `FRONTEND_ORIGIN`). Cuentas existentes se crean por SQL; `BOOTSTRAP_ADMIN_*` es una alternativa opcional para el primer administrador, debe quedar vacío si se gestiona todo por SQL.
-3. Base limpia: Flyway aplica V1 y V2. Base existente: verificar **historial Flyway** antes de ejecutar y **no repetir V1** sobre tablas existentes.
-4. Desde la raíz: `mvn clean test`, `mvn spring-boot:run`. O Docker: `docker compose up --build` tras configurar secretos.
+3. Desde la raíz: `mvn -DskipTests=false test` y `mvn -Plocal spring-boot:run`. El perfil `local` (activo por defecto) usa JDBC/Hikari y Tomcat embebido.
+4. También se puede generar el WAR ejecutable: `mvn -Plocal clean package` y ejecutar `java -jar target/gym-back-1.0.0-SNAPSHOT-exec.war`.
 5. `GET /api/v1/health`; login con cuenta real activa y contraseña BCrypt, luego `/auth/me` con bearer.
 6. Probar aislamiento entre gimnasios, roles múltiples, links a `userId` existente, visibilidad de rutinas, detalles de ventas y reserva `functional`.
 7. Revisar `docs/VERIFICACION.md` para casos obligatorios aún no ejecutados.
+
+### 5.2 Despliegue en WildFly 40 (Jakarta EE 11)
+
+1. Target: **WildFly 40.0.1.Final-jdk21 estándar** (Jakarta EE 11, Servlet 6.1, JPA 3.2, Bean Validation 3.1). Spring Boot 4.0.9 tiene baseline EE 11.
+2. Build del WAR plano para WildFly: `mvn clean package` → `target/gym-back-1.0.0-SNAPSHOT.war` (sin Tomcat ni driver PostgreSQL, que los aporta WildFly).
+3. Desplegar copiando el WAR a `$WILDFLY_HOME/standalone/deployments/`.
+4. La app usa `spring.datasource.jndi-name=java:/jdbc/AppDS`. El datasource y el driver PostgreSQL ya deben existir en WildFly. Si el esquema no es `public`, configurar `currentSchema` en la URL JDBC o `new-connection-sql` en el datasource.
+5. Arrancar WildFly con `-Dspring.profiles.active=wildfly` y definir `schema_db`, `JWT_SECRET`, `FRONTEND_ORIGIN`, `PUBLIC_SITE_BASE_URL`, `CHECKIN_MEMBER_QR_SECRET`, `KIOSK_CSRF_SECRET`, `KIOSK_COOKIE_SECURE` y `GMS_FILES_ROOT` en `standalone.conf`, `setenv.sh` o `<system-properties>`.
+6. Context root `/gms`: verificar `GET http://host:8080/gms/api/v1/health`.
+7. **Flyway está desactivado por defecto** (`spring.flyway.enabled=false`): el esquema lo gestiona Liquibase externamente. Las migraciones V1–V6 se conservan como referencia y el test de integración las habilita explícitamente.
+8. `spring.jpa.hibernate.ddl-auto=validate` sigue activo. Si el esquema de Liquibase no coincide con las entidades JPA, el despliegue fallará; corregir esquema/entidades o usar `none` temporalmente.
+9. `src/main/webapp/WEB-INF/jboss-deployment-structure.xml` excluye los subsistemas `jpa`, `bean-validation`, `weld` y `jsf`, además de los módulos de Hibernate/JPA de WildFly. Spring Boot usa su propio Hibernate, Bean Validation y Jackson desde `WEB-INF/lib`; la aplicación no usa CDI ni JSF. No eliminarlo sin revisar versiones.
+10. Con artefacto **exploded** en IntelliJ, hacer `Build > Rebuild Project` y **Redeploy**; los cambios en `WEB-INF/*.xml` no se aplican con hot swap.
+11. Pendiente: validar despliegue, login, check-in y subida de archivos en el WildFly real.
 
 ## 6. Índice
 

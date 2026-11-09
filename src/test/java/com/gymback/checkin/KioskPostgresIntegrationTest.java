@@ -1,7 +1,7 @@
 package com.gymback.checkin;
 
-import com.fasterxml.jackson.databind.JsonNode;
-import com.fasterxml.jackson.databind.ObjectMapper;
+import tools.jackson.databind.JsonNode;
+import tools.jackson.databind.ObjectMapper;
 import com.gymback.modules.checkin.services.CheckinCrypto;
 import com.gymback.security.DeviceAuthorizationService;
 import org.junit.jupiter.api.*;
@@ -27,7 +27,7 @@ import static org.junit.jupiter.api.Assertions.*;
 /** Real HTTP, SecurityFilterChain, Flyway and PostgreSQL. Never targets the normal database. */
 @EnabledIfEnvironmentVariable(named="GMS_TEST_DB_URL", matches="jdbc:postgresql://127\\.0\\.0\\.1:55432/gms_checkin_audit")
 @SpringBootTest(webEnvironment=SpringBootTest.WebEnvironment.RANDOM_PORT, properties={
- "spring.config.import=", "app.user-api-enabled=true", "app.jwt.secret=audit-only-jwt-secret-at-least-32-bytes-001",
+ "spring.config.import=", "spring.flyway.enabled=true", "app.user-api-enabled=true", "app.jwt.secret=audit-only-jwt-secret-at-least-32-bytes-001",
  "app.checkin.member-qr-secret=audit-only-member-secret-at-least-32-bytes-002",
  "app.checkin.kiosk-csrf-secret=audit-only-csrf-secret-at-least-32-bytes-003",
  "app.checkin.cookie-secure=false", "app.frontend-origin=http://localhost:5173",

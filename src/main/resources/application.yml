@@ -1,19 +1,13 @@
 spring:
+  application:
+    name: gym-back
+  profiles:
+    # En local se usa "local" (Tomcat embebido + JDBC). En WildFly: -Dspring.profiles.active=wildfly
+    active: ${SPRING_PROFILES_ACTIVE:local}
   servlet:
     multipart:
       max-file-size: 8MB
       max-request-size: 9MB
-  application:
-    name: gym-back
-  config:
-    import: optional:file:.env[.properties]
-  datasource:
-    url: jdbc:postgresql://${DB_HOST:localhost}:${DB_PORT:5432}/${DB_NAME:gymback}
-    username: ${DB_USER:gymback}
-    password: ${DB_PASSWORD:}
-    hikari:
-      maximum-pool-size: 10
-      connection-init-sql: SET search_path TO ${schema_db:${SCHEMA_DB:test}}, public
   jpa:
     open-in-view: false
     hibernate:
@@ -24,7 +18,8 @@ spring:
         jdbc:
           time_zone: UTC
   flyway:
-    enabled: true
+    # La base de datos se gestiona con Liquibase. Flyway solo se habilita en el test de integración.
+    enabled: false
     baseline-on-migrate: false
     default-schema: ${schema_db:${SCHEMA_DB:test}}
     schemas: ${schema_db:${SCHEMA_DB:test}}
@@ -32,7 +27,6 @@ spring:
     placeholders:
       schema_db: ${schema_db:${SCHEMA_DB:test}}
 server:
-  port: ${SERVER_PORT:8080}
   error:
     include-message: never
 app:

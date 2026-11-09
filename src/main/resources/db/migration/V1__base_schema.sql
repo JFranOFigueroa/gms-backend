@@ -22,6 +22,7 @@ CREATE TABLE ${schema_db}.users (
     email_verified_at TIMESTAMPTZ,
     created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
     updated_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+    deleted_at TIMESTAMPTZ,
     CONSTRAINT ck_user_password CHECK (status = 'invited' OR password_hash IS NOT NULL)
 );
 
@@ -38,7 +39,8 @@ CREATE TABLE ${schema_db}.gym (
     status TEXT NOT NULL DEFAULT 'active' CHECK (status IN ('active','suspended','archived')),
     created_by UUID REFERENCES ${schema_db}.users(id) ON DELETE SET NULL,
     created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
-    updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
+    updated_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+    deleted_at TIMESTAMPTZ
 );
 
 ALTER TABLE ${schema_db}.users
@@ -49,7 +51,8 @@ ALTER TABLE ${schema_db}.users
 CREATE TABLE ${schema_db}.platform_admins (
     user_id UUID PRIMARY KEY REFERENCES ${schema_db}.users(id) ON DELETE RESTRICT,
     assigned_by UUID REFERENCES ${schema_db}.users(id) ON DELETE SET NULL,
-    assigned_at TIMESTAMPTZ NOT NULL DEFAULT now()
+    assigned_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+    deleted_at TIMESTAMPTZ
 );
 
 -- Un mismo usuario puede ser owner de varios gimnasios o trainer en otros.
@@ -60,6 +63,7 @@ CREATE TABLE ${schema_db}.gym_staff_roles (
     is_active BOOLEAN NOT NULL DEFAULT TRUE,
     assigned_by UUID REFERENCES ${schema_db}.users(id) ON DELETE SET NULL,
     assigned_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+    deleted_at TIMESTAMPTZ,
     PRIMARY KEY (gym_id, user_id, role)
 );
 CREATE INDEX ix_staff_user ON ${schema_db}.gym_staff_roles(user_id, gym_id) WHERE is_active;
@@ -146,6 +150,7 @@ CREATE TABLE ${schema_db}.gym_members (
     is_active BOOLEAN NOT NULL DEFAULT TRUE,
     created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
     updated_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+    deleted_at TIMESTAMPTZ,
     UNIQUE (gym_id, id),
     UNIQUE (gym_id, user_id),
     UNIQUE (gym_id, member_code),
@@ -163,6 +168,7 @@ CREATE TABLE ${schema_db}.membership_plans (
     description TEXT,
     is_active BOOLEAN NOT NULL DEFAULT TRUE,
     created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+    deleted_at TIMESTAMPTZ,
     UNIQUE (gym_id, id),
     UNIQUE (gym_id, name)
 );
@@ -178,6 +184,7 @@ CREATE TABLE ${schema_db}.member_subscriptions (
     status TEXT NOT NULL DEFAULT 'active' CHECK (status IN ('active','paused','cancelled')),
     created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
     updated_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+    deleted_at TIMESTAMPTZ,
     UNIQUE (gym_id, id),
     UNIQUE (gym_id, id, member_id),
     FOREIGN KEY (gym_id, member_id) REFERENCES ${schema_db}.gym_members(gym_id, id) ON DELETE RESTRICT,
@@ -260,6 +267,7 @@ CREATE TABLE ${schema_db}.guest_passes (
     issued_at TIMESTAMPTZ NOT NULL DEFAULT now(),
     expires_at TIMESTAMPTZ,
     used_at TIMESTAMPTZ,
+    deleted_at TIMESTAMPTZ,
     UNIQUE (gym_id, id),
     UNIQUE (gym_id, phone_normalized)
 );
@@ -275,6 +283,7 @@ CREATE TABLE ${schema_db}.class_reservations (
         CHECK (status IN ('booked','cancelled','attended','no_show')),
     booked_at TIMESTAMPTZ NOT NULL DEFAULT now(),
     cancelled_at TIMESTAMPTZ,
+    deleted_at TIMESTAMPTZ,
     FOREIGN KEY (gym_id, class_id) REFERENCES ${schema_db}.gym_classes(gym_id, id) ON DELETE RESTRICT,
     FOREIGN KEY (gym_id, guest_pass_id) REFERENCES ${schema_db}.guest_passes(gym_id, id) ON DELETE RESTRICT,
     CONSTRAINT ck_reservation_identity CHECK (num_nonnulls(user_id, guest_pass_id) = 1)
@@ -310,6 +319,7 @@ CREATE TABLE ${schema_db}.routine_days (
     routine_id UUID NOT NULL,
     day_order INTEGER NOT NULL CHECK (day_order >= 1),
     day_label TEXT NOT NULL,
+    deleted_at TIMESTAMPTZ,
     UNIQUE (gym_id, id),
     UNIQUE (gym_id, routine_id, day_order),
     FOREIGN KEY (gym_id, routine_id) REFERENCES ${schema_db}.routines(gym_id, id) ON DELETE CASCADE
@@ -325,6 +335,7 @@ CREATE TABLE ${schema_db}.routine_exercises (
     reps_label TEXT, -- p.ej. '12', '45s', 'al fallo'
     rest_label TEXT, -- p.ej. '60s'
     notes TEXT,
+    deleted_at TIMESTAMPTZ,
     UNIQUE (gym_id, routine_day_id, exercise_order),
     FOREIGN KEY (gym_id, routine_day_id) REFERENCES ${schema_db}.routine_days(gym_id, id) ON DELETE CASCADE
 );
@@ -343,6 +354,7 @@ CREATE TABLE ${schema_db}.products (
     is_active BOOLEAN NOT NULL DEFAULT TRUE,
     created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
     updated_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+    deleted_at TIMESTAMPTZ,
     UNIQUE (gym_id, id),
     UNIQUE (gym_id, sku)
 );
@@ -399,6 +411,8 @@ CREATE TABLE ${schema_db}.checkin_devices (
     is_active BOOLEAN NOT NULL DEFAULT TRUE,
     last_seen_at TIMESTAMPTZ,
     created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+    created_by UUID REFERENCES ${schema_db}.users(id) ON DELETE SET NULL,
+    deleted_at TIMESTAMPTZ,
     UNIQUE (gym_id, id),
     UNIQUE (gym_id, device_name)
 );
@@ -429,6 +443,7 @@ CREATE TABLE ${schema_db}.checkin_events (
     reason_detail TEXT,
     visit_date DATE NOT NULL, -- fecha LOCAL del gimnasio, no la del servidor
     occurred_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+    deleted_at TIMESTAMPTZ,
     FOREIGN KEY (gym_id, member_id) REFERENCES ${schema_db}.gym_members(gym_id, id) ON DELETE RESTRICT,
     FOREIGN KEY (gym_id, guest_pass_id) REFERENCES ${schema_db}.guest_passes(gym_id, id) ON DELETE RESTRICT,
     FOREIGN KEY (gym_id, device_id) REFERENCES ${schema_db}.checkin_devices(gym_id, id) ON DELETE RESTRICT,
@@ -457,7 +472,13 @@ CREATE TABLE ${schema_db}.audit_events (
     old_values JSONB,
     new_values JSONB,
     request_id UUID,
-    occurred_at TIMESTAMPTZ NOT NULL DEFAULT now()
+    created_by UUID REFERENCES ${schema_db}.users(id) ON DELETE SET NULL,
+    deleted_by UUID REFERENCES ${schema_db}.users(id) ON DELETE SET NULL,
+    updated_by UUID REFERENCES ${schema_db}.users(id) ON DELETE SET NULL,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+    occurred_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+    deleted_at TIMESTAMPTZ,
+    updated_at TIMESTAMPTZ
 );
 CREATE INDEX ix_audit_gym_date ON ${schema_db}.audit_events(gym_id, occurred_at DESC);
 CREATE INDEX ix_audit_actor_date ON ${schema_db}.audit_events(actor_user_id, occurred_at DESC);
