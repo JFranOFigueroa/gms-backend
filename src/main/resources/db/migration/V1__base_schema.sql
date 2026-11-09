@@ -413,6 +413,9 @@ CREATE TABLE ${schema_db}.checkin_devices (
     created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
     created_by UUID REFERENCES ${schema_db}.users(id) ON DELETE SET NULL,
     deleted_at TIMESTAMPTZ,
+    deleted_by UUID REFERENCES ${schema_db}.users(id) ON DELETE SET NULL,
+    updated_at TIMESTAMPTZ,
+    updated_by UUID REFERENCES ${schema_db}.users(id) ON DELETE SET NULL,
     UNIQUE (gym_id, id),
     UNIQUE (gym_id, device_name)
 );
@@ -425,6 +428,12 @@ CREATE TABLE ${schema_db}.checkin_qr_tokens (
     token_hash TEXT NOT NULL UNIQUE,
     issued_at TIMESTAMPTZ NOT NULL DEFAULT now(),
     expires_at TIMESTAMPTZ NOT NULL,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+    created_by UUID REFERENCES ${schema_db}.users(id) ON DELETE SET NULL,
+    deleted_at TIMESTAMPTZ,
+    deleted_by UUID REFERENCES ${schema_db}.users(id) ON DELETE SET NULL,
+    updated_at TIMESTAMPTZ,
+    updated_by UUID REFERENCES ${schema_db}.users(id) ON DELETE SET NULL,
     FOREIGN KEY (gym_id, device_id) REFERENCES ${schema_db}.checkin_devices(gym_id, id) ON DELETE CASCADE,
     CONSTRAINT ck_qr_expiry CHECK (expires_at > issued_at)
 );
@@ -444,6 +453,11 @@ CREATE TABLE ${schema_db}.checkin_events (
     visit_date DATE NOT NULL, -- fecha LOCAL del gimnasio, no la del servidor
     occurred_at TIMESTAMPTZ NOT NULL DEFAULT now(),
     deleted_at TIMESTAMPTZ,
+    deleted_by UUID REFERENCES ${schema_db}.users(id) ON DELETE SET NULL,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+    created_by UUID REFERENCES ${schema_db}.users(id) ON DELETE SET NULL,
+    updated_at TIMESTAMPTZ,
+    updated_by UUID REFERENCES ${schema_db}.users(id) ON DELETE SET NULL,
     FOREIGN KEY (gym_id, member_id) REFERENCES ${schema_db}.gym_members(gym_id, id) ON DELETE RESTRICT,
     FOREIGN KEY (gym_id, guest_pass_id) REFERENCES ${schema_db}.guest_passes(gym_id, id) ON DELETE RESTRICT,
     FOREIGN KEY (gym_id, device_id) REFERENCES ${schema_db}.checkin_devices(gym_id, id) ON DELETE RESTRICT,
