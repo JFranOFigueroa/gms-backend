@@ -6,6 +6,25 @@ Proyecto backend solamente, Java 21 + Spring Boot 4.0.9 + PostgreSQL. No incorpo
 
 La base de datos se gestiona externamente con Liquibase. La aplicación **no ejecuta Flyway** en WildFly (`spring.flyway.enabled=false`). Las migraciones V1–V6 se conservan como referencia y para el test de integración opcional.
 
+## Liquibase
+
+El baseline del esquema está en `src/main/resources/db/schema/schema.sql` (formatted SQL consolidado de V1–V6). El changelog raíz es `src/main/resources/db/changelog-master.yaml` e incluye `src/main/resources/db/seed/seed.sql`.
+
+```bash
+cp liquibase.properties.example liquibase.properties
+# Editar url, username, password y schema_db en liquibase.properties
+
+liquibase --defaults-file=liquibase.properties validate
+liquibase --defaults-file=liquibase.properties update-sql
+liquibase --defaults-file=liquibase.properties update
+```
+
+- `liquibase.properties` está ignorado por Git; no versionar credenciales.
+- Con la configuración de ejemplo, las tablas de control de Liquibase viven en `public` y el primer changeset crea el esquema `${schema_db}`.
+- Si prefieres que `databasechangelog` viva en `${schema_db}`, crea el esquema antes de ejecutar y ajusta `defaultSchemaName`/`liquibaseSchemaName`.
+- El baseline está pensado para una base nueva o vacía. Si el esquema ya existe, no ejecutes `update` directamente: usa `changelog-sync` o evalúa la transición con un DBA.
+- `db/migration/V1–V6` permanece sin cambios como referencia y para el test Flyway opcional.
+
 ## Desarrollo local
 
 Requisitos: JDK 21, Maven 3.9+ y PostgreSQL.

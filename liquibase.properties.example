@@ -1,0 +1,14 @@
+# Copiar a liquibase.properties y personalizar. NO subir liquibase.properties a Git.
+changeLogFile=src/main/resources/db/changelog-master.yaml
+# Ejecutar Liquibase desde la raíz del proyecto.
+liquibase.searchPath=.
+url=jdbc:postgresql://localhost:5432/gymback
+username=CHANGE_ME
+password=CHANGE_ME
+driver=org.postgresql.Driver
+
+# Liquibase crea sus tablas de control en public. El changeset de schema.sql
+# crea el esquema ${schema_db} antes de crear las tablas de negocio.
+defaultSchemaName=public
+liquibaseSchemaName=public
+parameter.schema_db=test
