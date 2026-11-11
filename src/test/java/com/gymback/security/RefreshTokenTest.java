@@ -23,7 +23,7 @@ class RefreshTokenTest {
     var result=auth.refresh("x".repeat(64));
     assertNotNull(result.refreshToken());assertEquals("jwt",result.token());
     verify(sessions).revoke(sessionId);
-    verify(sessions).insert(eq(userId),anyString(),any(Instant.class));
+    verify(sessions).insert(any(UUID.class),eq(userId),anyString(),any(Instant.class));
   }
   @Test void rejectsInvalidOrReusedToken(){
     var repo=mock(IRefreshTokenRepository.class);

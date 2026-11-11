@@ -15,8 +15,17 @@ public class RefreshTokenRepository implements IRefreshTokenRepository {
       .map(s->new Session(s.id,s.userId,s.expiresAt.toInstant())).findFirst();
   }
   @Override public void insert(UUID userId,String hash,Instant expiresAt){
-    UserSession s=new UserSession();s.userId=userId;s.refreshTokenHash=hash;s.expiresAt=expiresAt.atOffset(ZoneOffset.UTC);
+    insert(UUID.randomUUID(),userId,hash,expiresAt);
+  }
+  @Override public void insert(UUID id,UUID userId,String hash,Instant expiresAt){
+    UserSession s=new UserSession();s.id=id;s.userId=userId;s.refreshTokenHash=hash;s.expiresAt=expiresAt.atOffset(ZoneOffset.UTC);
     em.persist(s);em.flush();
+  }
+  @Override @org.springframework.transaction.annotation.Transactional(readOnly=true)
+  public boolean isActive(UUID sessionId,UUID userId,Instant now){
+    return !em.createQuery("select s.id from UserSession s where s.id=:id and s.userId=:user and s.revokedAt is null and s.expiresAt>:now",UUID.class)
+      .setParameter("id",sessionId).setParameter("user",userId).setParameter("now",now.atOffset(ZoneOffset.UTC))
+      .setMaxResults(1).getResultList().isEmpty();
   }
   @Override public void revoke(UUID id){
     UserSession s=em.find(UserSession.class,id);

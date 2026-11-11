@@ -12,7 +12,8 @@ public class SaleController {
   @GetMapping public List<SaleView> list(@PathVariable UUID gymId,@RequestParam(defaultValue="50") int limit){
     return service.list(gymId,limit);
   }
-  @PostMapping public ResponseEntity<SaleView> checkout(@PathVariable UUID gymId,@RequestBody CheckoutRequest request){
-    return ResponseEntity.status(HttpStatus.CREATED).body(service.checkout(gymId,request));
+  @PostMapping public ResponseEntity<SaleView> checkout(@PathVariable UUID gymId,@RequestBody CheckoutRequest request,
+    @RequestHeader(value="Idempotency-Key",required=false)String key){
+    return ResponseEntity.status(HttpStatus.CREATED).body(service.checkout(gymId,request,key));
   }
 }

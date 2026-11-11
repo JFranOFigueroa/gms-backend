@@ -40,8 +40,8 @@ public class ServiceFactory {
  @Bean public com.gymback.modules.members.services.MemberService memberService(com.gymback.modules.members.interfaces.IMemberRepository repo,AuditService audit,AuthorizationService auth,com.gymback.security.IIdentityRepository accounts){return new com.gymback.modules.members.services.MemberService(repo,audit,auth,accounts);}
  @Bean public com.gymback.modules.staff.services.StaffService staffService(AuthorizationService auth,com.gymback.security.IIdentityRepository accounts,com.gymback.modules.staff.interfaces.IStaffRepository repo){return new com.gymback.modules.staff.services.StaffService(auth,accounts,repo);}
 
- @Bean public com.gymback.modules.payments.services.PaymentService paymentService(com.gymback.modules.payments.interfaces.IPaymentRepository repo,AuthorizationService auth){return new com.gymback.modules.payments.services.PaymentService(repo,auth);}
- @Bean public com.gymback.modules.pos.services.SaleService saleService(com.gymback.modules.pos.interfaces.ISaleRepository repo,AuthorizationService auth){return new com.gymback.modules.pos.services.SaleService(repo,auth);}
+ @Bean public com.gymback.modules.payments.services.PaymentService paymentService(com.gymback.modules.payments.interfaces.IPaymentRepository repo,AuthorizationService auth,com.gymback.shared.services.IdempotencyService idempotency){return new com.gymback.modules.payments.services.PaymentService(repo,auth,idempotency);}
+ @Bean public com.gymback.modules.pos.services.SaleService saleService(com.gymback.modules.pos.interfaces.ISaleRepository repo,AuthorizationService auth,com.gymback.shared.services.IdempotencyService idempotency){return new com.gymback.modules.pos.services.SaleService(repo,auth,idempotency);}
  @Bean public com.gymback.modules.checkin.services.MemberAccessPolicy memberAccessPolicy(com.gymback.modules.checkin.interfaces.ICheckinRepository repo){
   return new com.gymback.modules.checkin.services.MemberAccessPolicy(repo);
  }

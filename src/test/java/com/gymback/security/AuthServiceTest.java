@@ -34,7 +34,7 @@ class AuthServiceTest {
     assertEquals("jwt-signed",login.token());
     assertNotNull(login.refreshToken());
     assertEquals(3600L,login.expiresIn());
-    verify(sessions).insert(eq(userId),anyString(),any(java.time.Instant.class));
+    verify(sessions).insert(any(UUID.class),eq(userId),anyString(),any(java.time.Instant.class));
     assertEquals(login.user(),me.user());
     assertEquals(login.gyms(),me.gyms());
     assertEquals(List.of("owner","trainer"),login.gyms().get(0).roles());

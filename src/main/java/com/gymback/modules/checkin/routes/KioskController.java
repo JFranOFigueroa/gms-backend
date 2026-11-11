@@ -13,9 +13,10 @@ public class KioskController {
  private final KioskDeviceService devices;private final CheckinQrService qr;
  private final CheckinService checkins;private final DeviceAuthorizationService auth;
  private final boolean secure;
+ private final ClientIpResolver clients;
  public KioskController(KioskDeviceService devices,CheckinQrService qr,CheckinService checkins,DeviceAuthorizationService auth,
-                         @Value("${app.checkin.cookie-secure:true}")boolean secure){
-  this.devices=devices;this.qr=qr;this.checkins=checkins;this.auth=auth;this.secure=secure;
+                         @Value("${app.checkin.cookie-secure:true}")boolean secure,ClientIpResolver clients){
+  this.devices=devices;this.qr=qr;this.checkins=checkins;this.auth=auth;this.secure=secure;this.clients=clients;
  }
  private ResponseCookie cookie(String token,Duration life){
   return ResponseCookie.from(DeviceAuthenticationFilter.COOKIE,token).httpOnly(true).secure(secure)
@@ -23,7 +24,7 @@ public class KioskController {
  }
  @PostMapping("/activate") public ResponseEntity<Void> activate(@Valid @RequestBody Activate request,HttpServletRequest http){
   auth.requireOrigin(http);
-  var result=devices.activate(request,http.getRemoteAddr());
+  var result=devices.activate(request,clients.resolve(http));
   return ResponseEntity.noContent().header(HttpHeaders.SET_COOKIE,
     cookie(result.sessionToken(),Duration.between(OffsetDateTime.now(),result.expiresAt())).toString())
     .cacheControl(CacheControl.noStore()).build();

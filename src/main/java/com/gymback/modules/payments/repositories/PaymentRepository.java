@@ -50,6 +50,12 @@ public class PaymentRepository implements IPaymentRepository {
     p.method=method;p.periodicity=periodicity;p.periods=periods;p.periodStart=from;p.nextDueDate=due;
     p.notes=notes;p.registeredBy=actor;em.persist(p);em.flush();return p.id;
   }
+  @Override public Optional<Map<String,Object>> receipt(UUID gym,UUID id){
+    return em.createQuery("select p from PaymentEntry p where p.gymId=:gym and p.id=:id",PaymentEntry.class)
+      .setParameter("gym",gym).setParameter("id",id).setMaxResults(1).getResultStream().findFirst()
+      .map(p->Map.<String,Object>of("id",p.id,"memberId",p.memberId,"subscriptionId",p.subscriptionId,
+        "amount",p.amount,"periodStart",p.periodStart,"nextDueDate",p.nextDueDate,"periods",p.periods));
+  }
   @Override public List<Map<String,Object>> list(UUID gym,UUID member,int limit){
     if(limit<1||limit>100)throw new IllegalArgumentException("limit 1..100");
     var q=em.createQuery("select p from PaymentEntry p where p.gymId=:gym"+

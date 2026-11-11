@@ -20,10 +20,12 @@ public class CheckinDeviceSessionRepository extends BaseCRUD<CheckinDeviceSessio
  }
  @org.springframework.transaction.annotation.Transactional
  public void touch(UUID sessionId,UUID deviceId,OffsetDateTime at){
-  em.createQuery("update CheckinDeviceSession s set s.lastSeenAt=:at where s.id=:id and s.revokedAt is null and s.deletedAt is null")
-    .setParameter("at",at).setParameter("id",sessionId).executeUpdate();
-  em.createQuery("update CheckinDevice d set d.lastSeenAt=:at where d.id=:device and d.deletedAt is null")
-    .setParameter("at",at).setParameter("device",deviceId).executeUpdate();
+  // No generar dos eventos de auditoría en cada solicitud: la presencia es aproximada (5 min).
+  OffsetDateTime threshold=at.minusMinutes(5);
+  em.createQuery("update CheckinDeviceSession s set s.lastSeenAt=:at where s.id=:id and s.revokedAt is null and s.deletedAt is null and (s.lastSeenAt is null or s.lastSeenAt<:threshold)")
+    .setParameter("at",at).setParameter("id",sessionId).setParameter("threshold",threshold).executeUpdate();
+  em.createQuery("update CheckinDevice d set d.lastSeenAt=:at where d.id=:device and d.deletedAt is null and (d.lastSeenAt is null or d.lastSeenAt<:threshold)")
+    .setParameter("at",at).setParameter("device",deviceId).setParameter("threshold",threshold).executeUpdate();
  }
  public void revoke(CheckinDeviceSession s){s.revokedAt=OffsetDateTime.now();em.flush();}
 }

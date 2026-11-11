@@ -49,5 +49,10 @@ public class GymService extends BaseService<Gym> {
       e.setStatus("archived");
       softDelete(e,actor.id());
   }
-  private void validate(Gym e){ if(!Set.of("active","suspended","archived").contains(e.getStatus()))throw new DomainException("Estado inválido"); if(e.getSlug()==null || !e.getSlug().matches("[a-z0-9-]{3,80}"))throw new DomainException("Enlace inválido"); }
+  private void validate(Gym e){
+    if(!Set.of("active","suspended","archived").contains(e.getStatus()))throw new DomainException("Estado inválido");
+    if(e.getSlug()==null || !e.getSlug().matches("[a-z0-9-]{3,80}"))throw new DomainException("Enlace inválido");
+    try {java.time.ZoneId.of(e.getTimezone());}
+    catch(java.time.DateTimeException | NullPointerException ex){throw new DomainException("Zona horaria inválida");}
+  }
 }

@@ -32,7 +32,7 @@ public class DeviceAuthorizationService {
   CheckinDevice device=devices.findInGym(session.gymId,session.deviceId).orElseThrow(()->new AccessDeniedException("Dispositivo no disponible"));
   if(!Boolean.TRUE.equals(device.active)||device.activatedAt==null||!identity.isGymActive(session.gymId)
       ||!identity.isModuleEnabled(session.gymId,"checkin"))throw new AccessDeniedException("Dispositivo no disponible");
-  if(session.lastSeenAt==null||session.lastSeenAt.isBefore(now.minusMinutes(1)))sessions.touch(session.id,device.id,now);
+  if(session.lastSeenAt==null||session.lastSeenAt.isBefore(now.minusMinutes(5)))sessions.touch(session.id,device.id,now);
   return new KioskPrincipal(session.gymId,device.id,session.id,device.deviceName,session.expiresAt,token);
  }
  public KioskPrincipal current(){

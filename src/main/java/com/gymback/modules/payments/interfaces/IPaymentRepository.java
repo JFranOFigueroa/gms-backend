@@ -12,5 +12,6 @@ public interface IPaymentRepository {
   UUID createSubscription(UUID gym,UUID member,UUID plan,LocalDate started,LocalDate due);
   void updateSubscription(UUID id,LocalDate lastPayment,LocalDate nextDue);
   UUID insertPayment(UUID gym,UUID member,UUID subscription,BigDecimal amount,String method,String periodicity,int periods,LocalDate periodStart,LocalDate nextDue,String notes,UUID actor);
+  Optional<Map<String,Object>> receipt(UUID gym,UUID paymentId);
   List<Map<String,Object>> list(UUID gym,UUID memberId,int limit);
 }

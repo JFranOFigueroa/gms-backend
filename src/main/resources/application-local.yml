@@ -1,0 +1,12 @@
+# Configuracion exclusiva del perfil local; conserva el .env existente.
+spring:
+  config:
+    import: "optional:file:.env[.properties]"
+  flyway:
+    enabled: ${LOCAL_FLYWAY_ENABLED:true}
+  datasource:
+    url: jdbc:postgresql://${DB_HOST:localhost}:${DB_PORT:5432}/${DB_NAME:gymback}?currentSchema=${schema_db:${SCHEMA_DB:test}},public
+    username: ${DB_USER:gymback}
+    password: ${DB_PASSWORD:}
+server:
+  port: ${SERVER_PORT:8080}

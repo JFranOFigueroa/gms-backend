@@ -20,9 +20,12 @@ import java.util.List;
 @Configuration
 public class SecurityConfig {
   @Bean public PasswordEncoder passwordEncoder(){return new BCryptPasswordEncoder(12);}
-  @Bean public JwtDecoder jwtDecoder(@Value("${app.jwt.secret}") String secret) {
+  @Bean public JwtDecoder jwtDecoder(@Value("${app.jwt.secret}") String secret,IRefreshTokenRepository sessions) {
     SecretKeySpec key=secret(secret);
-    return NimbusJwtDecoder.withSecretKey(key).macAlgorithm(MacAlgorithm.HS256).build();
+    NimbusJwtDecoder decoder=NimbusJwtDecoder.withSecretKey(key).macAlgorithm(MacAlgorithm.HS256).build();
+    decoder.setJwtValidator(new org.springframework.security.oauth2.core.DelegatingOAuth2TokenValidator<>(
+      JwtValidators.createDefaultWithIssuer("gym-back"),new SessionJwtValidator(sessions)));
+    return decoder;
   }
   @Bean public JwtEncoder jwtEncoder(@Value("${app.jwt.secret}") String secret) { return new NimbusJwtEncoder(new ImmutableSecret<SecurityContext>(secret(secret))); }
   private SecretKeySpec secret(String secret) {
