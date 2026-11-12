@@ -1,0 +1,7 @@
+spring:
+  datasource:
+    # Datasource configurado en WildFly. No definir url/username/password aquí.
+    jndi-name: java:/jdbc/AppDS
+  flyway:
+    # El esquema lo gestiona Liquibase fuera de la aplicación.
+    enabled: false
