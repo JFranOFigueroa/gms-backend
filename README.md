@@ -125,7 +125,9 @@ El frontend debe usar ese prefijo.
 
 ### Classloading
 
-`src/main/webapp/WEB-INF/jboss-deployment-structure.xml` excluye los subsistemas `jpa`, `bean-validation`, `weld` y `jsf`, además de los módulos de Hibernate/JPA de WildFly. Spring Boot usa su propio Hibernate, Bean Validation y Jackson desde `WEB-INF/lib`; la aplicación no usa CDI ni JSF. No eliminar ese archivo sin revisar los conflictos de versiones.
+`src/main/webapp/WEB-INF/jboss-deployment-structure.xml` excluye los subsistemas `jpa`, `bean-validation`, `weld`, `jsf` y `logging`. Spring Boot usa su propio Hibernate, Bean Validation, Jackson 3 y Logback desde `WEB-INF/lib`; la aplicación no usa CDI ni JSF. No eliminar ese archivo sin revisar los conflictos de versiones.
+
+La exclusión de `logging` es obligatoria: sin ella WildFly impone su módulo `org.slf4j` (`slf4j-jboss-logmanager`) con prioridad sobre `WEB-INF/lib`, Logback deja de ser el binding y Spring Boot falla con `LoggerFactory is not a Logback LoggerContext`. Toda la aplicación usa **Jackson 3** (`tools.jackson.*`), que es el que auto-configura Spring Boot 4; no hay ningún bean manual de Jackson 2.
 
 Si despliegas desde IntelliJ con un artefacto **exploded**, haz `Build > Rebuild Project` y después **Redeploy**. Los cambios en `WEB-INF/*.xml` no se aplican con hot swap.
 

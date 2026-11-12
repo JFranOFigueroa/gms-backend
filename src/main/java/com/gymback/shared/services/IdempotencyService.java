@@ -1,7 +1,7 @@
 package com.gymback.shared.services;
 
-import com.fasterxml.jackson.core.JsonProcessingException;
-import com.fasterxml.jackson.databind.ObjectMapper;
+import tools.jackson.core.JacksonException;
+import tools.jackson.databind.ObjectMapper;
 import com.gymback.shared.exceptions.ConflictException;
 import com.gymback.shared.exceptions.DomainException;
 import jakarta.persistence.EntityManager;
@@ -81,6 +81,6 @@ public class IdempotencyService {
     try{
       byte[] bytes=mapper.writeValueAsBytes(payload);
       return HexFormat.of().formatHex(MessageDigest.getInstance("SHA-256").digest(bytes));
-    }catch(JsonProcessingException | java.security.NoSuchAlgorithmException ex){throw new IllegalStateException("No se pudo calcular huella de solicitud",ex);}
+    }catch(JacksonException | java.security.NoSuchAlgorithmException ex){throw new IllegalStateException("No se pudo calcular huella de solicitud",ex);}
   }
 }
