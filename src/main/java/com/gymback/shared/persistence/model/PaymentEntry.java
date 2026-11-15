@@ -10,7 +10,7 @@ import org.hibernate.type.SqlTypes;
 @Entity @Table(name="membership_payments")
 public class PaymentEntry extends AuditedRecord {
   @Id @Column(name="id") public UUID id = UUID.randomUUID();
-  @Column(name="gym_id") public UUID gymId;
+  @Column(name="branch_id") public UUID branchId;
   @Column(name="member_id") public UUID memberId;
   @Column(name="subscription_id") public UUID subscriptionId;
   @Column(name="amount") public BigDecimal amount;

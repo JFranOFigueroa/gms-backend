@@ -1,3 +1,5 @@
+> **Documento histórico del refactor JPA (2026-11-03).** Los nombres actuales del dominio son `branch` para sucursal y `site` para la marca global. Para la arquitectura vigente, consultar `README_MASTER_BACKEND.md` y `docs/ARQUITECTURA_Y_PATRONES.md`.
+
 # Refactor arquitectónico JPA — Gym Back
 
 **Base exacta:** `gym_back_auditoria_refresh_imagenes.zip` (entrega anterior), no el ZIP previo de `src.zip`. **Fecha:** 2026-11-03. **Ámbito:** backend completo. **Frontend:** sin modificar. **Versión de base de datos:** V1–V4 **idénticas** (no se necesita V5 porque no cambió el esquema).

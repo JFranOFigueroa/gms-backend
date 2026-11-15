@@ -11,7 +11,7 @@ import java.util.UUID;
 @Entity @Table(name="checkin_access_codes")
 public class CheckinAccessCode extends AuditedRecord implements BaseEntity {
  @Id public UUID id=UUID.randomUUID();
- @Column(name="gym_id",nullable=false) public UUID gymId;
+ @Column(name="branch_id",nullable=false) public UUID branchId;
  @Column(name="member_id",nullable=false) public UUID memberId;
  @Column(name="code_hash",nullable=false,length=64) public String codeHash;
  @Column(name="issued_at",nullable=false) public OffsetDateTime issuedAt=OffsetDateTime.now();
@@ -19,5 +19,5 @@ public class CheckinAccessCode extends AuditedRecord implements BaseEntity {
  @Column(name="consumed_at") public OffsetDateTime consumedAt;
  @Column(name="revoked_at") public OffsetDateTime revokedAt;
  public UUID getId(){return id;}
- public UUID getGymId(){return gymId;}
+ public UUID getBranchId(){return branchId;}
 }

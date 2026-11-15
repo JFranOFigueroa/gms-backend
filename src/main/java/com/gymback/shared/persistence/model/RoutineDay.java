@@ -10,7 +10,7 @@ import org.hibernate.type.SqlTypes;
 @Entity @Table(name="routine_days")
 public class RoutineDay extends AuditedRecord {
   @Id @Column(name="id") public UUID id = UUID.randomUUID();
-  @Column(name="gym_id") public UUID gymId;
+  @Column(name="branch_id") public UUID branchId;
   @Column(name="routine_id") public UUID routineId;
   @Column(name="day_order") public Integer dayOrder;
   @Column(name="day_label") public String dayLabel;

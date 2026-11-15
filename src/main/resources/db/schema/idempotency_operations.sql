@@ -4,7 +4,7 @@
 --changeset gms:idempotency-operations-001 dbms:postgresql
 CREATE TABLE ${schema_db}.request_idempotency (
  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
- gym_id UUID NOT NULL REFERENCES ${schema_db}.gym(id) ON DELETE RESTRICT,
+ branch_id UUID NOT NULL REFERENCES ${schema_db}.branch(id) ON DELETE RESTRICT,
  actor_id UUID NOT NULL REFERENCES ${schema_db}.users(id) ON DELETE RESTRICT,
  operation VARCHAR(32) NOT NULL CHECK (operation IN ('payment','sale')),
  idempotency_key VARCHAR(128) NOT NULL,
@@ -16,7 +16,7 @@ CREATE TABLE ${schema_db}.request_idempotency (
  updated_by UUID REFERENCES ${schema_db}.users(id) ON DELETE SET NULL,
  deleted_at TIMESTAMPTZ,
  deleted_by UUID REFERENCES ${schema_db}.users(id) ON DELETE SET NULL,
- CONSTRAINT ux_request_idempotency UNIQUE (gym_id,actor_id,operation,idempotency_key)
+ CONSTRAINT ux_request_idempotency UNIQUE (branch_id,actor_id,operation,idempotency_key)
 );
 CREATE INDEX ix_request_idempotency_created ON ${schema_db}.request_idempotency(created_at);
 CREATE TRIGGER trg_audit_metadata BEFORE INSERT OR UPDATE ON ${schema_db}.request_idempotency

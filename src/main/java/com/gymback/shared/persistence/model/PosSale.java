@@ -10,7 +10,7 @@ import org.hibernate.type.SqlTypes;
 @Entity @Table(name="pos_sales")
 public class PosSale extends AuditedRecord {
   @Id @Column(name="id") public UUID id = UUID.randomUUID();
-  @Column(name="gym_id") public UUID gymId;
+  @Column(name="branch_id") public UUID branchId;
   @Column(name="total") public BigDecimal total;
   @JdbcTypeCode(SqlTypes.CHAR) @Column(name="currency",columnDefinition="char(3)") public String currency = "MXN";
   @Column(name="status") public String status = "completed";

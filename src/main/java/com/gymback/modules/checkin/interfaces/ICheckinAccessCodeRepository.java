@@ -7,8 +7,8 @@ import java.util.UUID;
 
 public interface ICheckinAccessCodeRepository {
  CheckinAccessCode save(CheckinAccessCode code);
- Optional<CheckinAccessCode> byHash(UUID gym,String codeHash);
- Optional<CheckinAccessCode> lockByHash(UUID gym,String codeHash);
- long issuedSince(UUID gym,UUID member,OffsetDateTime since);
- void revokeOutstanding(UUID gym,UUID member,OffsetDateTime at);
+ Optional<CheckinAccessCode> byHash(UUID branch,String codeHash);
+ Optional<CheckinAccessCode> lockByHash(UUID branch,String codeHash);
+ long issuedSince(UUID branch,UUID member,OffsetDateTime since);
+ void revokeOutstanding(UUID branch,UUID member,OffsetDateTime at);
 }

@@ -27,11 +27,11 @@ public class IdempotencyService {
     this.table="\""+schema+"\".request_idempotency";
   }
 
-  public record Claim(UUID gymId,UUID actorId,String operation,String key,UUID existingResourceId) {
+  public record Claim(UUID branchId,UUID actorId,String operation,String key,UUID existingResourceId) {
     public boolean replay(){return existingResourceId!=null;}
   }
 
-  public Claim claim(UUID gym,UUID actor,String operation,String suppliedKey,Object request){
+  public Claim claim(UUID branch,UUID actor,String operation,String suppliedKey,Object request){
     if(suppliedKey==null)return null;
     String key=suppliedKey.strip();
     if(!key.matches("[A-Za-z0-9._:-]{8,128}"))
@@ -39,28 +39,28 @@ public class IdempotencyService {
     String fingerprint=fingerprint(request);
     // Unique constraint serializes simultaneous duplicate requests across all JVM instances.
     int inserted=em.createNativeQuery("""
-      INSERT INTO %s(id,gym_id,actor_id,operation,idempotency_key,request_hash)
-      VALUES (:id,:gym,:actor,:operation,:key,:hash)
-      ON CONFLICT (gym_id,actor_id,operation,idempotency_key) DO NOTHING
+      INSERT INTO %s(id,branch_id,actor_id,operation,idempotency_key,request_hash)
+      VALUES (:id,:branch,:actor,:operation,:key,:hash)
+      ON CONFLICT (branch_id,actor_id,operation,idempotency_key) DO NOTHING
       """.formatted(table))
-      .setParameter("id",UUID.randomUUID()).setParameter("gym",gym).setParameter("actor",actor)
+      .setParameter("id",UUID.randomUUID()).setParameter("branch",branch).setParameter("actor",actor)
       .setParameter("operation",operation).setParameter("key",key).setParameter("hash",fingerprint)
       .executeUpdate();
-    if(inserted==1)return new Claim(gym,actor,operation,key,null);
+    if(inserted==1)return new Claim(branch,actor,operation,key,null);
 
     @SuppressWarnings("unchecked")
     List<Object[]> rows=em.createNativeQuery("""
       SELECT request_hash,resource_id FROM %s
-      WHERE gym_id=:gym AND actor_id=:actor AND operation=:operation AND idempotency_key=:key
+      WHERE branch_id=:branch AND actor_id=:actor AND operation=:operation AND idempotency_key=:key
       FOR UPDATE
       """.formatted(table))
-      .setParameter("gym",gym).setParameter("actor",actor)
+      .setParameter("branch",branch).setParameter("actor",actor)
       .setParameter("operation",operation).setParameter("key",key).getResultList();
     if(rows.size()!=1)throw new IllegalStateException("Solicitud idempotente no encontrada");
     if(!fingerprint.equals(rows.get(0)[0]))
       throw new ConflictException("idempotency_key_reused","Esta clave ya se usó con otros datos");
     if(rows.get(0)[1]==null)throw new IllegalStateException("Solicitud idempotente incompleta");
-    return new Claim(gym,actor,operation,key,(UUID)rows.get(0)[1]);
+    return new Claim(branch,actor,operation,key,(UUID)rows.get(0)[1]);
   }
 
   public void complete(Claim claim,UUID resourceId){
@@ -68,10 +68,10 @@ public class IdempotencyService {
     if(claim.replay())throw new IllegalStateException("No puede completarse un reintento");
     int updated=em.createNativeQuery("""
       UPDATE %s SET resource_id=:resource
-      WHERE gym_id=:gym AND actor_id=:actor AND operation=:operation
+      WHERE branch_id=:branch AND actor_id=:actor AND operation=:operation
         AND idempotency_key=:key AND resource_id IS NULL
       """.formatted(table))
-      .setParameter("resource",resourceId).setParameter("gym",claim.gymId())
+      .setParameter("resource",resourceId).setParameter("branch",claim.branchId())
       .setParameter("actor",claim.actorId()).setParameter("operation",claim.operation())
       .setParameter("key",claim.key()).executeUpdate();
     if(updated!=1)throw new IllegalStateException("No se pudo completar la solicitud idempotente");

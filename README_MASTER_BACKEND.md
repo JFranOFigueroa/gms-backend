@@ -1,128 +1,238 @@
-> **ESTADO ACTUAL (integración WildFly EE 11 07/11/2026):** El proyecto se empaqueta como **WAR** para desplegarse en **WildFly 40.0.1.Final-jdk21 estándar (Jakarta EE 11)** usando el datasource JNDI `java:/jdbc/AppDS`, con context root `/gms`. Se migró a **Spring Boot 4.0.9** (Spring Framework 7, Spring Security 7, Hibernate 7, Hibernate Validator 9, Jackson 3, Servlet 6.1), se añadió `ServletInitializer`, perfiles `local`/`wildfly`, descriptores `jboss-web.xml` y `jboss-deployment-structure.xml` (excluye los subsistemas `jpa`, `bean-validation`, `weld`, `jsf` y `logging`), y se desactivó Flyway por defecto (el esquema lo gestiona Liquibase externamente). El desarrollo local sigue con Tomcat 11 embebido y PostgreSQL vía `mvn -Plocal spring-boot:run`. `mvn -DskipTests=false test` (71 tests, 0 fallos, 17 omitidos) y `mvn -DskipTests package` pasan; **el despliegue real en WildFly aún no se ha validado** en este entorno.
+# Gym Back — documento maestro del backend
 
-> **ESTADO PREVIO (refactor JPA 03/11/2026):** Se reemplazó el acceso `JdbcTemplate` de los repositorios por JPA/JPQL, conservando BaseCRUD/BaseService y la migración V4. Solo subsiste `set_config` encapsulado en `shared/persistence/repositories/AuditActorRepository` para los triggers PostgreSQL. Ver `docs/REFACTORIZACION_JPA_BUENAS_PRACTICAS.md`. Las secciones inferiores que describan JDBC o ausencia de POM son históricas.
+**Main local:** `src/main/java/com/gymback/GymBackApplication.java`.
+**Entrada WildFly:** `src/main/java/com/gymback/ServletInitializer.java`.
+**Stack:** Java 21, Spring Boot 4.0.9, Spring Framework 7, Spring Security 7, Hibernate 7, Jackson 3, PostgreSQL 15+, Liquibase externo.
 
-> **Decisión vigente:** la página es automática por gimnasio y se consulta por slug. No existe flujo manual de publicar/despublicar. Véase `docs/DECISION_LANDING_ENLACE_DIRECTO.md` para los contratos actuales; las referencias históricas a snapshots/publicación describen la integración anterior.
+## 1. Regla de continuidad
 
-# GYM BACK — DOCUMENTO MAESTRO DEL BACKEND
+Trabaja exclusivamente sobre este backend. Mantén:
 
-**Archivo maestro para trabajar con cualquier IA:** `README_MASTER_BACKEND.md` (este archivo).  
-**Main ejecutable local:** `src/main/java/com/gymback/GymBackApplication.java`.  
-**Punto de entrada WildFly:** `src/main/java/com/gymback/ServletInitializer.java`.  
-**Actualizado:** 2026-11-07. **Alcance:** únicamente backend Java; frontend Vue no modificado.  
-**Estado de verificación:** compilación y tests Maven en verde; despliegue real en WildFly pendiente de validar en el servidor destino.
+```text
+Controller -> Service -> I*Repository -> Repository -> PostgreSQL
+```
 
-## 1. Prompt de continuidad para cualquier IA
+- Las reglas de negocio viven en `Service`.
+- Los controllers no acceden a JPA/JdbcTemplate.
+- Los repositorios no contienen reglas de autorización.
+- Las transacciones se declaran en los casos de uso.
+- Toda consulta operativa se filtra por `branch_id` y valida permisos en servidor.
+- No agregues endpoints, tablas o flujos sin requerimiento.
+- Actualiza pruebas, contrato y documentación junto con el código.
 
-> Trabaja exclusivamente sobre el backend Gym Back, Java 21 + Spring Boot + PostgreSQL. Lee primero este documento, luego `docs/DECISIONES_PENDIENTES.md`, `docs/ARQUITECTURA_Y_PATRONES.md`, `docs/CONTRATOS_FRONTEND.md`, código real del módulo y migraciones Flyway. Mantén `Controller -> Service -> I*Repository -> Repository -> PostgreSQL`, con `BaseCRUD`, `BaseService`, `AuditService` y `ServiceFactory`. Las reglas de negocio viven exclusivamente en Service; no accedas a JdbcTemplate/JPA desde Service o Controller. No crees nuevos endpoints, tablas ni flujos sin requerimiento; no asumas permisos aún no definidos. Las transacciones van en los casos de uso. Verifica `gymId` y rol sobre servidor, filtra `gym_id` en toda consulta, crea pruebas de regresión, conserva la compatibilidad de migraciones Flyway y actualiza docs y registro de cambios. La nueva fuente de verdad es el código actualizado y las decisiones confirmadas debajo; nunca sigas ejemplos desactualizados.
+## 2. Modelo sitio / sucursal
 
-## 2. Decisiones confirmadas por el usuario
+### Sitio (global)
 
-1. **Cuentas globales se insertan manualmente mediante SQL** en `${schema_db}.users`, con hash BCrypt compatible y `status='active'`. Registro público, invitaciones, activación y recuperación de contraseña **NO** se implementan ahora.
-2. `POST /gyms/{gymId}/members` y `POST /gyms/{gymId}/staff` NO crean usuarios globales: **asocian un `userId` existente y activo** a un gimnasio. PATCH no puede reasignar identidad.
-3. **Selección de gimnasio dentro del flujo de login.** Por privacidad, el servidor valida primero email/contraseña y devuelve `gyms[]` con `roles[]` efectivos de cada uno; Vue muestra el selector después de autenticar, pero antes de ingresar a la aplicación. No se implementa un endpoint público de enumeración de gimnasios por email. `gymId` elegido viaja en la URL de APIs tenant y el servidor revalida permisos. `/auth/me` devuelve el mismo modelo `user + gyms` que `/auth/login` (menos el token), para restaurar selector y sesión.
-4. `admin` es un rol global y puede consultar gimnasios activos; `owner/trainer/member` son roles por gimnasio, y el mismo usuario puede tener múltiples roles en un mismo gym. **La matriz definitiva de permisos queda pendiente**; conservar permisos preexistentes como política provisional, no asegurar que sean definitivos.
-5. Los **pagos son exclusivamente administrativos y manuales**; NO hay pasarela, conciliación bancaria, reembolso ni flujo de corrección automática de capturas equivocadas. La responsabilidad de captura es del operador. `PaymentService` calcula monto y vencimiento desde el plan.
-6. **No integrar ni modificar Vue aún**. Los contratos de Vue se adaptarán cuando el backend esté probado; no definir por adelantado el orden de integración de módulos.
-7. **Calendario:** la categoría `functional` del frontend queda permitida en SQL y validaciones Java mediante migración V2, sin alterar la V1. Se trata provisionalmente como clase regular a efectos del límite diario de reservas; confirmar esa regla cuando se defina política de calendario.
-8. **Rutinas:** un `member` solo consulta `published=true`; owner/trainer/admin pueden consultar borradores, conservando reglas de autorización preexistentes.
-9. **Ventas:** `GET /sales` y `POST /sales` devuelven detalle de artículos (ID de producto, nombre al vender, cantidad, precio unitario y total de línea). Nunca se aceptan precios de cliente.
-10. `schema_db` (alias `SCHEMA_DB`) decide esquema de PostgreSQL; no hardcodear `test` en Java ni SQL parametrizado por cliente.
+La marca es única por instalación. No tiene `branch_id`.
 
-## 3. Arquitectura y estructura
+- `site_settings`: identidad, contacto, moneda, timezone, tema.
+- `site_landing_blocks`: bloques de la landing pública única.
+- `site_media_assets`: imágenes/recurso del sitio.
 
-- `security/`: JWT, autenticación, modelo `dto/AuthUser`, `dto/GymAccess`, `dto/AuthSession`, `dto/LoginResponse`, autorización y `IIdentityRepository`/`IdentityRepository`.
-- `modules/members/`, `modules/staff/`: relación con cuenta global existente y operaciones del gimnasio.
-- `modules/payments/`: registro administrativo manual.
-- `modules/calendar/`: clases, plantillas, reservas y categoría canónica (`ClassCategories`).
-- `modules/routines/`: agregado rutina+días+ejercicios; filtro publicado en repositorio.
-- `modules/pos/`: productos, venta transaccional e ítems con lectura agrupada.
-- `modules/gyms/`, `plans/`, `checkin/`, `settings/`, `landing/`, `media/`: código existente, no ampliado aquí.
-- `modules/notifications/`, `jobs/`, `files/`, `audit/`: capacidades futuras, no simular completitud.
-- `shared/`: bases CRUD/service, auditoría acotada a columnas reales, factoría, errores.
-- `src/main/resources/db/migration/V1__base_schema.sql`: creación original; NO editar después de aplicar.
-- `src/main/resources/db/migration/V2__allow_functional_calendar_category.sql`: extensión de categorías de calendario.
+Endpoints:
 
-## 4. Contratos esenciales
+- `GET /api/v1/public/site` (anónimo).
+- `GET|PATCH /api/v1/site/settings`.
+- CRUD `/api/v1/site/landing-blocks`.
+- CRUD `/api/v1/site/media` + `POST /site/media/upload`.
+- `GET /api/v1/public/media/{id}` (anónimo).
 
-`POST /api/v1/auth/login` con `{ "email": "...", "password": "..." }`: `{ "token":"...", "tokenType":"Bearer", "user":{ "id", "name", "email", "platformAdmin", "defaultGymId" }, "gyms":[{"id","name","slug","roles":["owner", "trainer"]}] }`.
+Permisos de edición del sitio: `platformAdmin` u `owner` de al menos una sucursal activa.
 
-`GET /api/v1/auth/me`: `{ "user":{...}, "gyms":[...] }`; no devuelve token ni un rol global `user.role`. El selector debe permitir elegir entre los IDs autorizados; solo admin puede ver todos los gimnasios activos.
+### Sucursal (operativa)
 
-`POST /api/v1/gyms/{gymId}/members`: `{ "userId":"UUID_EXISTENTE", "code":"M-001", "active":true }`. La respuesta expone perfil de miembro, no contraseña.
+- `branch`, `branch_settings`, `branch_modules`.
+- `branch_members`, `branch_staff_roles`, `branch_classes`.
+- `member_photos` (privada, separada de `site_media_assets`).
 
-`POST /api/v1/gyms/{gymId}/staff`: `{ "userId":"UUID_EXISTENTE", "role":"trainer" }`. `PATCH /staff/{userId}` `{ "role":"trainer" }`; si ya existen dos roles, no sustituir uno arbitrariamente. `GET /staff` agrega `roles[]` por usuario.
+Todos los recursos operativos usan:
 
-`GET /api/v1/gyms/{gymId}/routines`: para member solo rutinas publicadas; `GET /{id}` de borrador para member devuelve 404.
+```text
+/api/v1/branches/{branchId}/...
+```
 
-`GET /api/v1/gyms/{gymId}/sales`: cada venta incluye `items[]` con `productId,productName,quantity,unitPrice,lineTotal`.
+El `branchId` se valida contra la sesión y los roles del usuario. Un `platformAdmin` puede operar cualquier sucursal activa.
 
-`GET /api/v1/gyms/{gymId}/payments`, `POST /api/v1/gyms/{gymId}/payments`: registro manual, sin APIs bancarias ni anulación automática.
+### Kiosco
 
-Documentación completa en `docs/CONTRATOS_FRONTEND.md`. **No agregar endpoints adicionales por intuición.**
+El kiosco no usa una landing por sucursal:
 
-## 5. Ejecutar y verificar
+- `GET /api/v1/public/branches/{code}/checkin-config`.
+- `POST /api/v1/kiosk/activate` con `{ code, activationCode }`.
+- Cookie HttpOnly de dispositivo.
+- `GET /api/v1/kiosk/session`, `POST /api/v1/kiosk/logout`, QR y validaciones bajo `/api/v1/kiosk/...`.
 
-### 5.1 Desarrollo local (Tomcat embebido + PostgreSQL)
+## 3. Autenticación y autorización
 
-1. JDK 21, Maven 3.9+, PostgreSQL 15+. Asegurar que el rol de DB pueda crear esquema/extensiones o aprovisionarlas previamente.
-2. Configurar `.env` (`DB_*`, `schema_db`, `JWT_SECRET` aleatorio >=32 bytes, `FRONTEND_ORIGIN`). Cuentas existentes se crean por SQL; `BOOTSTRAP_ADMIN_*` es una alternativa opcional para el primer administrador, debe quedar vacío si se gestiona todo por SQL.
-3. Desde la raíz: `mvn -DskipTests=false test` y `mvn -Plocal spring-boot:run`. El perfil `local` (activo por defecto) usa JDBC/Hikari y Tomcat embebido.
-4. También se puede generar el WAR ejecutable: `mvn -Plocal clean package` y ejecutar `java -jar target/gym-back-1.0.0-SNAPSHOT-exec.war`.
-5. `GET /api/v1/health`; login con cuenta real activa y contraseña BCrypt, luego `/auth/me` con bearer.
-6. Probar aislamiento entre gimnasios, roles múltiples, links a `userId` existente, visibilidad de rutinas, detalles de ventas y reserva `functional`.
-7. Revisar `docs/VERIFICACION.md` para casos obligatorios aún no ejecutados.
+- `POST /api/v1/auth/login` devuelve `token`, `refreshToken`, `user` y `branches[]`.
+- `GET /api/v1/auth/me` devuelve `user` y `branches[]`.
+- `POST /api/v1/auth/refresh` rota el refresh token.
+- `POST /api/v1/auth/logout` invalida el refresh token.
 
-### 5.2 Despliegue en WildFly 40 (Jakarta EE 11)
+`AuthUser` es global:
 
-1. Target: **WildFly 40.0.1.Final-jdk21 estándar** (Jakarta EE 11, Servlet 6.1, JPA 3.2, Bean Validation 3.1). Spring Boot 4.0.9 tiene baseline EE 11.
-2. Build del WAR plano para WildFly: `mvn clean package` → `target/gym-back-1.0.0-SNAPSHOT.war` (sin Tomcat ni driver PostgreSQL, que los aporta WildFly).
-3. Desplegar copiando el WAR a `$WILDFLY_HOME/standalone/deployments/`.
-4. La app usa `spring.datasource.jndi-name=java:/jdbc/AppDS`. El datasource y el driver PostgreSQL ya deben existir en WildFly. Si el esquema no es `public`, configurar `currentSchema` en la URL JDBC o `new-connection-sql` en el datasource.
-5. Arrancar WildFly con `-Dspring.profiles.active=wildfly` y definir `schema_db`, `JWT_SECRET`, `FRONTEND_ORIGIN`, `PUBLIC_SITE_BASE_URL`, `CHECKIN_MEMBER_QR_SECRET`, `KIOSK_CSRF_SECRET`, `KIOSK_COOKIE_SECURE` y `GMS_FILES_ROOT` en `standalone.conf`, `setenv.sh` o `<system-properties>`.
-6. Context root `/gms`: verificar `GET http://host:8080/gms/api/v1/health`.
-7. **Flyway está desactivado por defecto** (`spring.flyway.enabled=false`): el esquema lo gestiona Liquibase externamente. El baseline es `src/main/resources/db/schema/schema.sql` y el changelog raíz `src/main/resources/db/changelog-master.yaml`; las migraciones V1–V6 se conservan como referencia y el test de integración las habilita explícitamente.
-8. `spring.jpa.hibernate.ddl-auto=validate` sigue activo. Si el esquema de Liquibase no coincide con las entidades JPA, el despliegue fallará; corregir esquema/entidades o usar `none` temporalmente.
-9. `src/main/webapp/WEB-INF/jboss-deployment-structure.xml` excluye los subsistemas `jpa`, `bean-validation`, `weld`, `jsf` y `logging`. Spring Boot usa su propio Hibernate, Bean Validation, Jackson 3 y Logback desde `WEB-INF/lib`; la aplicación no usa CDI ni JSF. No eliminarlo sin revisar versiones. La exclusión de `logging` evita que WildFly imponga `slf4j-jboss-logmanager` (que tiene prioridad sobre `WEB-INF/lib`) y rompa el arranque de Logback. Toda la aplicación usa Jackson 3 (`tools.jackson.*`), auto-configurado por Spring Boot 4; no hay bean manual de Jackson 2.
-10. Con artefacto **exploded** en IntelliJ, hacer `Build > Rebuild Project` y **Redeploy**; los cambios en `WEB-INF/*.xml` no se aplican con hot swap.
-11. Pendiente: validar despliegue, login, check-in y subida de archivos en el WildFly real.
+```json
+{ "id": "...", "name": "...", "email": "...", "platformAdmin": true, "defaultBranchId": "..." }
+```
 
-## 6. Índice
+`BranchAccess`:
 
-- `docs/ARQUITECTURA_Y_PATRONES.md` — dependencia de capas y reglas antiparches.
-- `docs/CONTRATOS_FRONTEND.md` — contratos backend existentes para la integración posterior.
-- `docs/DECISIONES_PENDIENTES.md` — qué NO está definido / qué queda fuera de alcance.
-- `docs/SEGURIDAD_Y_BD.md` — aislamiento, roles, login y esquema.
-- `docs/PROVISIONAMIENTO_USUARIOS_SQL.md` — alta manual de usuarios y vínculos con gimnasios (guía sin credenciales reales).
-- `docs/VERIFICACION.md` — tests ejecutables y pruebas E2E necesarias.
-- `docs/REGISTRO_CAMBIOS.md` — evidencia de cambios y límites de validación.
+```json
+{ "id": "...", "name": "Sucursal Demo", "code": "sucursal-demo", "roles": ["owner"] }
+```
 
-## 7. Regla diaria
+Un `platformAdmin` puede autenticarse sin sucursales. Los roles operativos son por sucursal: `owner`, `trainer`, `member`. `admin` es global.
 
-Cambiar **código + pruebas + contrato + documentación + migración aditiva** juntos cuando corresponda. Antes de declarar una función «terminada», compilar, probar la migración contra PostgreSQL y comprobar la petición HTTP real. Distinguir hechos verificados de supuestos. No solucionar un problema de service metiendo lógica en controllers.
+## 4. Estructura de paquetes
 
+- `security/`: JWT, refresh, autorización, `AdminBootstrap`, filtros.
+- `modules/branches/`: sucursales y códigos.
+- `modules/site/`: settings, landing, media y contrato público.
+- `modules/members/`: expedientes y fotos privadas.
+- `modules/staff/`: vínculos de staff.
+- `modules/plans/`, `payments/`: planes y pagos manuales.
+- `modules/calendar/`: clases, plantillas y reservas.
+- `modules/routines/`: rutinas, días y ejercicios.
+- `modules/pos/`: productos, ventas e ítems.
+- `modules/checkin/`: QR, códigos, dispositivos y auditoría.
+- `modules/files/`: almacenamiento local y entrega de imágenes.
+- `shared/`: `BaseCRUD`, `BaseService`, auditoría, errores y persistencia.
+- `jobs/`, `notifications/`, `audit/`: capacidades de soporte.
 
-### Corrección de compilación (2026-11-03)
-Se resolvieron dos ambigüedades de consulta de `StaffRepository` y se completó el contrato `insertPlatformAdmin` requerido por `AdminBootstrap`. Ver `docs/REGISTRO_CAMBIOS.md` y correr `mvn clean test` localmente.
+## 5. Contratos esenciales
 
-## 8. Ampliación propuesta e implementación parcial del 03/11/2026
+### Login
 
-Se añadieron las rutas de publicación pública y otras consultas/altas guiadas solicitadas. **Leer `docs/INTEGRACION_BACKEND_ESTADO.md` antes de conectar Vue**: describe qué endpoints están implementados, cuáles requieren habilitar `USER_API_ENABLED` (apagada por defecto) y qué queda pendiente (QR, upload, invitados). La decisión original de aprovisionamiento SQL sigue vigente por defecto; se requiere revisión antes de activar altas por API. La migración nueva es `V3__landing_publications.sql`, sin editar V1/V2. La verificación de sintaxis no equivale a `mvn test` ni a pruebas PostgreSQL. El ZIP de entrada contenía código y docs, pero **no incluía pom.xml**.
+```http
+POST /api/v1/auth/login
+Content-Type: application/json
 
+{ "email": "...", "password": "..." }
+```
 
-## Actualización auditoría / refresh / archivos (03/11/2026)
+### Sucursales
 
-La implementación nueva se describe en `docs/CAMBIOS_IMPLEMENTADOS_AUDITORIA.md` y los contratos para Vue/Pinia en `docs/GUIA_FRONTEND_SESION_IMAGENES.md`. La migración **V4** agrega campos de auditoría y soft-delete al esquema, introduce refresh token rotativo y almacenamiento local de imágenes. Las notas antiguas que describían estos módulos como reservados o los archivos como no implementados son históricas, no representan esta entrega. No se reintroduce publicar/despublicar landing: sigue activa por slug. El ZIP no incluye el `pom.xml` original y la integración real debe verificarse con Maven/PostgreSQL antes de desplegar.
+```http
+GET    /api/v1/branches
+POST   /api/v1/branches
+GET    /api/v1/branches/{id}
+PATCH  /api/v1/branches/{id}
+DELETE /api/v1/branches/{id}
+```
 
-## Extensión Check-in QR y kiosco (V5)
+Solo `platformAdmin`. `DELETE` archiva; no borra físicamente.
 
-- Implementación y decisiones técnicas: `CAMBIOS_IMPLEMENTADOS_CHECKIN_QR.md`.
-- Contratos funcionales para Vue: `docs/CONTRATOS_FRONTEND_CHECKIN_QR.md`.
-- Seguridad, configuración y validación de Flyway: `docs/DESPLIEGUE_CHECKIN_QR_BACKEND.md`.
-- Colección de peticiones HTTP: `docs/POSTMAN_CHECKIN_QR.json`.
+### Landing pública
 
-Se conservan los endpoints previos de Check-in y los demás módulos. La migración V5 es aditiva; requiere revisar en datos reales las suscripciones sin fecha de vencimiento. No se añadió API de invitaciones, notificaciones persistentes ni controles de publicación de landing.
+```http
+GET /api/v1/public/site
+```
 
-## Complemento Check-in V6 — código manual, slug y nombres
+Respuesta:
 
-Se añadió `V6__checkin_one_time_manual_codes.sql` y los dos endpoints de código temporal para miembro y kiosco; `GET /kiosk/session` ahora añade `slug` y el historial privado añade nombres legibles. Ver `CAMBIOS_IMPLEMENTADOS_CHECKIN_V6.md` y `docs/GUIA_FRONTEND_CHECKIN_CODIGO_Y_SESION.md`. Los contratos anteriores de QR y Check-in administrativo permanecen. El ZIP de esta entrega **no incluye `pom.xml`**, aunque alguna nota histórica anterior diga lo contrario; usar el `pom.xml` del proyecto original para compilar/probar.
+```json
+{
+  "site": {},
+  "theme": { "preset": "crossfit-dark", "overrides": {} },
+  "blocks": [],
+  "mediaAssets": []
+}
+```
+
+### Miembros
+
+```http
+POST /api/v1/branches/{branchId}/members
+{ "userId": "UUID_EXISTENTE", "code": "M-001", "active": true }
+```
+
+No crea cuentas globales. Solo vincula un `userId` activo.
+
+### Fotos de miembros
+
+```http
+GET    /api/v1/branches/{branchId}/members/{memberId}/photo
+POST   /api/v1/branches/{branchId}/members/{memberId}/photo
+DELETE /api/v1/branches/{branchId}/members/{memberId}/photo
+```
+
+Requieren Bearer. La foto se guarda en `member_photos` y en almacenamiento local bajo `member-photos/{branchId}`.
+
+### Pagos
+
+```http
+GET  /api/v1/branches/{branchId}/payments
+POST /api/v1/branches/{branchId}/payments
+```
+
+Pagos manuales. No hay pasarela ni conciliación bancaria.
+
+### Ventas
+
+```http
+GET  /api/v1/branches/{branchId}/sales
+POST /api/v1/branches/{branchId}/sales
+```
+
+Las ventas incluyen `items[]` con `productId`, `productName`, `quantity`, `unitPrice` y `lineTotal`. El servidor calcula precios; nunca confía en el cliente.
+
+## 6. Base de datos y migraciones
+
+- Baseline: `src/main/resources/db/schema/schema.sql`.
+- Seed: `src/main/resources/db/seed/seed.sql`.
+- Idempotencia: `src/main/resources/db/schema/idempotency_operations.sql`.
+- Changelog: `src/main/resources/db/changelog-master.yaml`.
+
+Reglas:
+
+- El baseline es inmutable una vez aplicado. Los cambios posteriores van en changesets nuevos.
+- El seed es idempotente: “Sucursal Demo”, settings del sitio, 3 imágenes externas y 4 bloques iniciales.
+- No se incluyen contraseñas en SQL.
+- `AdminBootstrap` crea el administrador con `BOOTSTRAP_ADMIN_EMAIL` y `BOOTSTRAP_ADMIN_PASSWORD` (mínimo 12 caracteres) y lo vincula como `owner` de “Sucursal Demo” si existe.
+- `spring.jpa.hibernate.ddl-auto=validate` debe pasar contra el esquema de Liquibase.
+- Flyway está deshabilitado por defecto. El test de integración asume un esquema preparado externamente.
+
+## 7. Ejecutar y verificar
+
+### Local
+
+```bash
+mvn -DskipTests=false test
+mvn -Plocal spring-boot:run
+```
+
+Variables mínimas:
+
+```sh
+DB_HOST=localhost
+DB_PORT=5432
+DB_NAME=gymback
+DB_USER=gymback
+DB_PASSWORD=...
+schema_db=test
+JWT_SECRET=...                 # >= 32 bytes
+FRONTEND_ORIGIN=http://localhost:5173
+GMS_FILES_ROOT=/var/lib/gms/files
+```
+
+Health: `GET /api/v1/health`.
+
+### WildFly
+
+1. `mvn clean package`.
+2. Copiar el WAR plano a `$WILDFLY_HOME/standalone/deployments/`.
+3. Configurar datasource JNDI `java:/jdbc/AppDS` y driver PostgreSQL.
+4. Arrancar con `-Dspring.profiles.active=wildfly`.
+5. Definir `schema_db`, `JWT_SECRET`, `FRONTEND_ORIGIN`, `PUBLIC_SITE_BASE_URL`, `CHECKIN_MEMBER_QR_SECRET`, `KIOSK_CSRF_SECRET`, `KIOSK_COOKIE_SECURE` y `GMS_FILES_ROOT`.
+6. Verificar `GET http://host:8080/gms/api/v1/health`.
+
+`src/main/webapp/WEB-INF/jboss-deployment-structure.xml` excluye `jpa`, `bean-validation`, `weld`, `jsf` y `logging`; no eliminarlo sin revisar versiones.
+
+## 8. Validación conocida
+
+- `mvn test`: 75 tests, 0 fallos, 17 omitidos.
+- `KioskPostgresIntegrationTest` con PostgreSQL 15: 21 tests, 0 fallos, 1 omitido.
+- Esquema, seed e idempotencia aplicados en base limpia.
+- Arranque local con `ddl-auto=validate` y `AdminBootstrap` verificado.
+- Endpoints públicos y autenticados de sitio, media, sucursales, miembros y fotos verificados por HTTP.

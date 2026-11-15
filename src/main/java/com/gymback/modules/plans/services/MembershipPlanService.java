@@ -10,28 +10,28 @@ import java.util.*;
 public class MembershipPlanService extends BaseService<MembershipPlan> {
   private final AuthorizationService auth;
   public MembershipPlanService(IMembershipPlanRepository repo,AuditService audit,AuthorizationService auth) {super(repo,audit);this.auth=auth;}
-  @Transactional(readOnly=true) public List<MembershipPlan> all(UUID gymId,int offset,int limit){ auth.require(gymId,"owner","trainer","member"); return list(gymId,offset,limit); }
-  @Transactional(readOnly=true) public MembershipPlan one(UUID gymId,UUID id){ auth.require(gymId,"owner","trainer","member"); return getOr404(id,gymId); }
-  @Transactional public MembershipPlan add(UUID gymId,MembershipPlanRequest req){
-    Actor actor=auth.require(gymId,"owner");
+  @Transactional(readOnly=true) public List<MembershipPlan> all(UUID branchId,int offset,int limit){ auth.require(branchId,"owner","trainer","member"); return list(branchId,offset,limit); }
+  @Transactional(readOnly=true) public MembershipPlan one(UUID branchId,UUID id){ auth.require(branchId,"owner","trainer","member"); return getOr404(id,branchId); }
+  @Transactional public MembershipPlan add(UUID branchId,MembershipPlanRequest req){
+    Actor actor=auth.require(branchId,"owner");
     if(req.name()==null || req.name().isBlank()) throw new DomainException("name es obligatorio");if(req.price()==null) throw new DomainException("price es obligatorio");
     MembershipPlan e=new MembershipPlan();
-    e.setGymId(gymId);
+    e.setBranchId(branchId);
     if(req.name()!=null) e.setName(req.name()); if(req.billingPeriod()!=null) e.setBillingPeriod(req.billingPeriod()); if(req.intervalCount()!=null) e.setIntervalCount(req.intervalCount()); if(req.price()!=null) e.setPrice(req.price()); if(req.description()!=null) e.setDescription(req.description()); if(req.isActive()!=null) e.setIsActive(req.isActive());
 
     validate(e);
     return create(e,actor.id());
   }
-  @Transactional public MembershipPlan change(UUID gymId,UUID id,MembershipPlanRequest req){
-    Actor actor=auth.require(gymId,"owner");
-    MembershipPlan e=getOr404(id,gymId);
+  @Transactional public MembershipPlan change(UUID branchId,UUID id,MembershipPlanRequest req){
+    Actor actor=auth.require(branchId,"owner");
+    MembershipPlan e=getOr404(id,branchId);
     if(req.name()!=null) e.setName(req.name()); if(req.billingPeriod()!=null) e.setBillingPeriod(req.billingPeriod()); if(req.intervalCount()!=null) e.setIntervalCount(req.intervalCount()); if(req.price()!=null) e.setPrice(req.price()); if(req.description()!=null) e.setDescription(req.description()); if(req.isActive()!=null) e.setIsActive(req.isActive());
     validate(e);
     return update(e,actor.id());
   }
-  @Transactional public void remove(UUID gymId,UUID id){
-    Actor actor=auth.require(gymId,"owner");
-    MembershipPlan e=getOr404(id,gymId);
+  @Transactional public void remove(UUID branchId,UUID id){
+    Actor actor=auth.require(branchId,"owner");
+    MembershipPlan e=getOr404(id,branchId);
     e.setIsActive(false);softDelete(e,actor.id());
   }
   private void validate(MembershipPlan e){ if(e.getPrice()==null || e.getPrice().signum()<0)throw new DomainException("Precio inválido");

@@ -16,8 +16,9 @@ public class LocalImageStorage {
     this.root=Path.of(root).toAbsolutePath().normalize();
   }
   public record Saved(String key,String mime,long size) {}
-  public Saved save(UUID gym,MultipartFile file){
+  public Saved save(String scope,MultipartFile file){
     if(file==null || file.isEmpty() || file.getSize()>MAX_BYTES)throw new DomainException("Imagen vacía o mayor a 8 MB");
+    if(scope==null || !scope.matches("[a-z0-9-]+(?:/[a-z0-9-]+)*"))throw new DomainException("Ámbito de archivo inválido");
     try {
       byte[] header=new byte[16];
       try(InputStream input=file.getInputStream()){int n=input.read(header);if(n<12)throw new DomainException("Imagen inválida");}
@@ -26,7 +27,7 @@ public class LocalImageStorage {
       else if((header[0]&255)==0xff && (header[1]&255)==0xd8 && (header[2]&255)==0xff){extension="jpg";mime="image/jpeg";}
       else if(header[0]=='R'&&header[1]=='I'&&header[2]=='F'&&header[3]=='F'&&header[8]=='W'&&header[9]=='E'&&header[10]=='B'&&header[11]=='P'){extension="webp";mime="image/webp";}
       else throw new DomainException("Solo se permiten archivos PNG, JPG o WebP válidos");
-      String key=gym+"/"+UUID.randomUUID()+"."+extension;
+      String key=scope+"/"+UUID.randomUUID()+"."+extension;
       Path target=resolve(key); Files.createDirectories(target.getParent());
       Path temp=Files.createTempFile(target.getParent(),"upload-",".part");
       try {
@@ -49,7 +50,7 @@ public class LocalImageStorage {
     try {Files.deleteIfExists(resolve(key));}catch(IOException ignored) { /* limpiar archivos huérfanos por job */ }
   }
   private Path resolve(String key){
-    if(key==null || !key.matches("[a-fA-F0-9-]{36}/[a-fA-F0-9-]{36}\\.(png|jpg|webp)"))
+    if(key==null || !key.matches("[a-z0-9-]+(?:/[a-z0-9-]+)*/[a-fA-F0-9-]{36}\\.(png|jpg|webp)"))
       throw new DomainException("Clave de archivo inválida");
     Path resolved=root.resolve(key).normalize();
     if(!resolved.startsWith(root))throw new DomainException("Ruta no permitida");

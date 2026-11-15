@@ -10,7 +10,7 @@ import org.hibernate.type.SqlTypes;
 @Entity @Table(name="class_reservations")
 public class ClassReservation extends AuditedRecord {
   @Id @Column(name="id") public UUID id = UUID.randomUUID();
-  @Column(name="gym_id") public UUID gymId;
+  @Column(name="branch_id") public UUID branchId;
   @Column(name="class_id") public UUID classId;
   @Column(name="user_id") public UUID userId;
   @Column(name="status") public String status = "booked";

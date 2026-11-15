@@ -63,12 +63,12 @@ public class AuthService {
     UUID sessionId=UUID.randomUUID();
     sessions.insert(sessionId,user.id(),tokenHash(refresh),now.plusSeconds(REFRESH_SECONDS));
     JwtClaimsSet claims=JwtClaimsSet.builder().subject(user.id().toString())
-      .issuedAt(now).expiresAt(now.plusSeconds(ACCESS_SECONDS)).issuer("gym-back")
+      .issuedAt(now).expiresAt(now.plusSeconds(ACCESS_SECONDS)).issuer("branch-back")
       .claim("sid",sessionId.toString()).build();
     String token=encoder.encode(JwtEncoderParameters.from(
       JwsHeader.with(org.springframework.security.oauth2.jose.jws.MacAlgorithm.HS256).build(),claims)).getTokenValue();
     AuthSession session=buildSession(user);
-    return new LoginResponse(token,"Bearer",session.user(),session.gyms(),refresh,ACCESS_SECONDS);
+    return new LoginResponse(token,"Bearer",session.user(),session.branches(),refresh,ACCESS_SECONDS);
   }
   private String tokenHash(String token) {
     if(token==null || token.length()<40 || token.length()>512)throw new BadCredentialsException("Refresh token inválido");
@@ -86,9 +86,9 @@ public class AuthService {
   }
   private AuthSession buildSession(IIdentityRepository.UserCredentials user) {
     boolean admin=repo.isPlatformAdmin(user.id());
-    List<GymAccess> gyms=repo.gymsForUser(user.id(),admin);
-    var defaultGym=gyms.stream().anyMatch(g -> g.id().equals(user.defaultGymId()))
-      ? user.defaultGymId() : null;
-    return new AuthSession(new AuthUser(user.id(),user.name(),user.email(),admin,defaultGym),gyms);
+    List<BranchAccess> branches=repo.branchesForUser(user.id(),admin);
+    var defaultBranch=branches.stream().anyMatch(branch -> branch.id().equals(user.defaultBranchId()))
+      ? user.defaultBranchId() : null;
+    return new AuthSession(new AuthUser(user.id(),user.name(),user.email(),admin,defaultBranch),branches);
   }
 }

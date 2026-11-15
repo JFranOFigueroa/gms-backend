@@ -8,11 +8,11 @@ import java.util.UUID;
 @Entity @Table(name="checkin_qr_tokens")
 public class CheckinQrToken extends AuditedRecord implements BaseEntity {
  @Id public UUID id=UUID.randomUUID();
- @Column(name="gym_id") public UUID gymId;
+ @Column(name="branch_id") public UUID branchId;
  @Column(name="device_id") public UUID deviceId;
  @Column(name="token_hash") public String tokenHash;
  @Column(name="issued_at") public OffsetDateTime issuedAt=OffsetDateTime.now();
  @Column(name="expires_at") public OffsetDateTime expiresAt;
  public UUID getId(){return id;}
- public UUID getGymId(){return gymId;}
+ public UUID getBranchId(){return branchId;}
 }

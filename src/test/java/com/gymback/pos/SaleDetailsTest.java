@@ -13,16 +13,16 @@ import java.util.*;
 class SaleDetailsTest {
   @Test void listsSalesIncludingLinesWithOneBatchQuery() {
     var repo=mock(ISaleRepository.class);var auth=mock(AuthorizationService.class);
-    UUID gym=UUID.randomUUID(),saleId=UUID.randomUUID(),product=UUID.randomUUID();
-    var sale=new ISaleRepository.SaleSnapshot(saleId,gym,new BigDecimal("80.00"),"MXN","completed",
+    UUID branch=UUID.randomUUID(),saleId=UUID.randomUUID(),product=UUID.randomUUID();
+    var sale=new ISaleRepository.SaleSnapshot(saleId,branch,new BigDecimal("80.00"),"MXN","completed",
       UUID.randomUUID(),OffsetDateTime.now());
     var line=new SaleItemView(UUID.randomUUID(),product,"Agua",2,new BigDecimal("40.00"),new BigDecimal("80.00"));
-    when(repo.sales(gym,50)).thenReturn(List.of(sale));
-    when(repo.items(eq(gym),eq(List.of(saleId)))).thenReturn(Map.of(saleId,List.of(line)));
-    var result=new SaleService(repo,auth).list(gym,50);
+    when(repo.sales(branch,50)).thenReturn(List.of(sale));
+    when(repo.items(eq(branch),eq(List.of(saleId)))).thenReturn(Map.of(saleId,List.of(line)));
+    var result=new SaleService(repo,auth).list(branch,50);
     assertEquals(1,result.size());
     assertEquals(2,result.get(0).items().get(0).quantity());
     assertEquals("Agua",result.get(0).items().get(0).productName());
-    verify(repo,times(1)).items(eq(gym),anyCollection());
+    verify(repo,times(1)).items(eq(branch),anyCollection());
   }
 }

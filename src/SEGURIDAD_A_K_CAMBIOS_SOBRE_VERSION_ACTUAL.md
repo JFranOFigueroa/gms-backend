@@ -8,11 +8,11 @@
 |---|---|---|
 | A | Protección de login en memoria Java: 5 contraseñas fallidas por cuenta en ventana móvil de 15 minutos; sexto intento devuelve `429` y `Retry-After`; umbral complementario por IP. | Aplicado. Cada JVM tiene sus propios contadores; reiniciar borra el historial. |
 | B | JWT nuevos con claim interno `sid`; validación del estado de `user_sessions` en cada uso y revocación de acceso al cerrar sesión o rotar refresh. | Aplicado. JWT anteriores al despliegue sin `sid` conservan su vida restante (máximo 1 hora). |
-| C | Validación de `iss=gym-back` y tiempos en `NimbusJwtDecoder`. | Aplicado. |
-| D | `POST /api/v1/gyms/{gymId}/payments` permite `Idempotency-Key` opcional, deduplicación transaccional y recuperación del pago previo. | Aplicado. Sin header, los reintentos siguen pudiendo duplicar operaciones. |
-| E | `POST /api/v1/gyms/{gymId}/sales` admite la misma protección sin doble descuento de inventario. | Aplicado. Misma clave/datos: mismo `201` y venta; misma clave/distintos datos: `409`. |
+| C | Validación de `iss=branch-back` y tiempos en `NimbusJwtDecoder`. | Aplicado. |
+| D | `POST /api/v1/branches/{branchId}/payments` permite `Idempotency-Key` opcional, deduplicación transaccional y recuperación del pago previo. | Aplicado. Sin header, los reintentos siguen pudiendo duplicar operaciones. |
+| E | `POST /api/v1/branches/{branchId}/sales` admite la misma protección sin doble descuento de inventario. | Aplicado. Misma clave/datos: mismo `201` y venta; misma clave/distintos datos: `409`. |
 | F | Mantener permisos del entrenador. | Sin modificaciones, decisión explícita del usuario. |
-| G | Validar zona horaria IANA al crear/editar gimnasio. | Aplicado. Las otras validaciones de la entidad permanecen intactas. |
+| G | Validar zona horaria IANA al crear/editar sucursal. | Aplicado. Las otras validaciones de la entidad permanecen intactas. |
 | H | Reducir escrituras de `lastSeenAt` del kiosco a una frecuencia aproximada de 5 minutos. | Mitigación parcial; no se borra la auditoría. Política de retención pendiente. |
 | I | Obtener IP de login y activación de kiosco considerando `X-Forwarded-For` **solo** si el peer es proxy de confianza. | Aplicado; configurar `TRUSTED_PROXY_IPS` si hay reverse proxy. |
 | J | Conservar QR, código manual y los cuatro flujos de check-in. | Sin cambios de negocio; retransmisión remota de QR sigue siendo riesgo aceptado. |
@@ -20,15 +20,14 @@
 
 ## Diferencia importante frente al ZIP anterior
 
-El ZIP actual trae `application.yml` con `spring.flyway.enabled: false`, un baseline de Liquibase en `db/schema/schema.sql`, un seed y el archivo `db/changelog-master.yaml`. **Esos archivos originales fueron conservados**. En particular, no se modificó el baseline ya aplicado ni el nuevo `V1__base_schema.sql`.
+El proyecto actual usa Liquibase como único gestor de esquema. Flyway está deshabilitado por defecto y ya no existen migraciones `db/migration`.
 
-Para llevar la idempotencia al gestor de migraciones **de esta versión** se añadió:
+La idempotencia se implementa en:
 
-1. `src/main/resources/db/schema/idempotency_operations.sql`: changeset Liquibase nuevo `gms:idempotency-operations-001` con tabla `request_idempotency`, índice, claves y triggers de auditoría.
-2. Una referencia adicional a ese changeset **al final** de `db/changelog-master.yaml`.
-3. `src/main/resources/db/migration/V7__money_operation_idempotency.sql` queda disponible únicamente para entornos que **sigan ejecutando Flyway** (por ejemplo, pruebas de integración configuradas expresamente así).
+1. `src/main/resources/db/schema/idempotency_operations.sql`: changeset Liquibase `gms:idempotency-operations-001` con tabla `request_idempotency`, índice, claves y triggers de auditoría.
+2. `db/changelog-master.yaml`, que incluye `schema/schema.sql`, `seed/seed.sql` y `schema/idempotency_operations.sql`.
 
-**Importante:** Liquibase y Flyway son rutas de migración alternativas. **Nunca ejecutar las dos contra la misma base de datos para crear esta tabla**. Confirma que el entorno de despliegue usa realmente `classpath:db/changelog-master.yaml`; esa referencia puede estar definida en un perfil o configuración de servidor no incluida en el ZIP.
+**Importante:** el esquema se prepara externamente con Liquibase. No ejecutar dos rutas de migración contra la misma base de datos. El test de integración asume un esquema ya preparado.
 
 El servicio `IdempotencyService` ahora califica la tabla usando `${schema_db}` (o `SCHEMA_DB`, default `test`), por lo que no depende de que `SET search_path` esté presente en el pool de conexiones de WildFly. No se alteró la configuración `application.yml` actual.
 
@@ -51,7 +50,7 @@ Para aprovechar D y E, el frontend debe generar **una clave UUID por operación*
 5. Pagos: misma clave y mismo JSON dos veces -> **un pago** y **una sola extensión** de membresía; clave repetida con JSON distinto -> `409`.
 6. Ventas: misma clave y mismo JSON dos veces -> **una venta** y **una sola reducción** de stock; respuesta sin cambios de campos.
 7. Plan informativo de precio cero -> `400` descriptivo, sin insertar pago ni suscripción.
-8. Prueba de todos los roles, QR de gimnasio/miembro, código manual, check-in administrativo y activación/cookies del kiosco.
+8. Prueba de todos los roles, QR de sucursal/miembro, código manual, check-in administrativo y activación/cookies del kiosco.
 9. Con proxy real, comprobar IP de límite de login y activación de kiosco sin confiar en headers enviados por clientes directos.
 10. Monitorear latencia de BD: validar el `sid` agrega una consulta a `user_sessions` por petición JWT. Revisar crecimiento de auditoría.
 

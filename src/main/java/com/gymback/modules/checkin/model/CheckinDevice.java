@@ -8,7 +8,7 @@ import java.util.UUID;
 @Entity @Table(name="checkin_devices")
 public class CheckinDevice extends AuditedRecord implements BaseEntity {
  @Id public UUID id=UUID.randomUUID();
- @Column(name="gym_id") public UUID gymId;
+ @Column(name="branch_id") public UUID branchId;
  @Column(name="device_name") public String deviceName;
  @Column(name="device_secret_hash") public String deviceSecretHash;
  @Column(name="is_active") public Boolean active=true;
@@ -16,5 +16,5 @@ public class CheckinDevice extends AuditedRecord implements BaseEntity {
  @Column(name="activation_expires_at") public OffsetDateTime activationExpiresAt;
  @Column(name="activated_at") public OffsetDateTime activatedAt;
  public UUID getId(){return id;}
- public UUID getGymId(){return gymId;}
+ public UUID getBranchId(){return branchId;}
 }

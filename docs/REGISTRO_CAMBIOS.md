@@ -1,4 +1,22 @@
-> **Decisión vigente:** la página es automática por gimnasio y se consulta por slug. No existe flujo manual de publicar/despublicar. Véase `docs/DECISION_LANDING_ENLACE_DIRECTO.md` para los contratos actuales; las referencias históricas a snapshots/publicación describen la integración anterior.
+# Registro de cambios
+
+## 2026-11-15 — Sitio global, sucursales y landing única
+
+- Se separó el concepto de **sitio/marca** del de **sucursal**.
+- Se renombró el dominio de sucursal de `gym` a `branch` en Java, SQL, API y tests.
+- Se creó `modules/site` con settings, landing y multimedia globales.
+- La landing pública única es `GET /api/v1/public/site`; se eliminaron `/g/:slug`, landings por sucursal y `landing_publications`.
+- Se eliminó `media_assets`; las imágenes del sitio viven en `site_media_assets` y las fotos privadas en `member_photos`.
+- Se agregó `POST /api/v1/site/media/upload` y entrega pública en `/api/v1/public/media/{id}`.
+- El seed crea “Sucursal Demo”, settings del sitio, imágenes y bloques iniciales.
+- `AdminBootstrap` crea el administrador y lo vincula como `owner` de “Sucursal Demo”.
+- El kiosco usa `?branch=<code>` y `POST /api/v1/kiosk/activate {code, activationCode}`.
+- Se validó el esquema, el seed y el arranque local con `ddl-auto=validate`.
+- Se ejecutaron los tests unitarios y el test de integración PostgreSQL.
+
+## Historial
+
+Las secciones siguientes describen entregas anteriores y pueden usar nombres antiguos (`gym`, `slug`, Flyway). Se conservan como registro histórico.
 
 ## 2026-11-03 — Integración parcial de especificación de endpoints y landing pública
 

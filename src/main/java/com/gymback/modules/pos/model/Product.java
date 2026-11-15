@@ -11,7 +11,7 @@ import java.time.OffsetDateTime;
 @Table(name="products")
 public class Product implements BaseEntity {
   @Id @Column(name="id",nullable=false) private UUID id = UUID.randomUUID();
-  @Column(name="gym_id") private UUID gymId;
+  @Column(name="branch_id") private UUID branchId;
     @Column(name="sku")
   private String sku;
   @Column(name="barcode")
@@ -34,7 +34,7 @@ public class Product implements BaseEntity {
   private OffsetDateTime updatedAt = OffsetDateTime.now();
   @Override public UUID getId() {return id;}
   public void setId(UUID id){this.id=id;}
-  @Override public UUID getGymId(){return gymId;} public void setGymId(UUID id){this.gymId=id;}
+  @Override public UUID getBranchId(){return branchId;} public void setBranchId(UUID id){this.branchId=id;}
     public String getSku() {return sku;}
   public void setSku(String value) {this.sku=value;}
   public String getBarcode() {return barcode;}

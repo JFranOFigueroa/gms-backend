@@ -10,7 +10,7 @@ import org.hibernate.type.SqlTypes;
 @Entity @Table(name="member_subscriptions")
 public class MemberSubscription extends AuditedRecord {
   @Id @Column(name="id") public UUID id = UUID.randomUUID();
-  @Column(name="gym_id") public UUID gymId;
+  @Column(name="branch_id") public UUID branchId;
   @Column(name="member_id") public UUID memberId;
   @Column(name="plan_id") public UUID planId;
   @Column(name="started_on") public LocalDate startedOn;

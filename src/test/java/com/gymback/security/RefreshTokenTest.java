@@ -13,7 +13,7 @@ class RefreshTokenTest {
     UUID userId=UUID.randomUUID(),sessionId=UUID.randomUUID();
     var credentials=new IIdentityRepository.UserCredentials(userId,"Eva","eva@test.invalid","hash","active",null);
     when(identities.findCredentialsById(userId)).thenReturn(Optional.of(credentials));
-    when(identities.gymsForUser(eq(userId),anyBoolean())).thenReturn(List.of());
+    when(identities.branchesForUser(eq(userId),anyBoolean())).thenReturn(List.of());
     var key=mock(Jwt.class);when(key.getTokenValue()).thenReturn("jwt");
     var enc=mock(JwtEncoder.class);when(enc.encode(any(JwtEncoderParameters.class))).thenReturn(key);
     when(sessions.lockValid(anyString(),any(Instant.class))).thenReturn(Optional.of(

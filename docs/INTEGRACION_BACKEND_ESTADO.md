@@ -1,33 +1,64 @@
-# Estado de integración backend — revisión sin publicación manual
+# Estado de integración backend
 
-**Decisión funcional vigente:** existe una página pública por gimnasio activo. La ruta compartible se basa en `gym.slug`; lo que se guarda en el editor se consulta directamente sin etapa publicar/despublicar. Esta revisión **sustituye** al flujo de snapshots de la propuesta histórica, conservada en `docs/INTEGRACION_BACKEND_ESTADO_HISTORICO_20261103.md`.
+## Arquitectura vigente
 
-## Cambios efectivos sobre el backend corregido
+- **Sitio global**: `site_settings`, `site_landing_blocks`, `site_media_assets`.
+- **Sucursal operativa**: `branch`, `branch_settings`, `branch_modules`, `branch_members`, `branch_staff_roles`, `branch_classes`, etc.
+- **Landing única**: `GET /api/v1/public/site`.
+- **Kiosco**: `?branch=<code>` + `POST /api/v1/kiosk/activate`.
 
-- Se retiran del controlador **únicamente** las operaciones de publicación manual `POST /gyms/{gymId}/landing/publish` y `POST /gyms/{gymId}/landing/unpublish`.
-- `GET /gyms/{gymId}/landing/link` (nuevo) y `GET .../landing/publication` (alias temporal compatible) devuelven `gymId`, `gymName`, `slug` y `publicUrl`; no contienen estado de publicación, revisión de borrador ni versión de snapshot.
-- `PATCH /gyms/{gymId}/landing/slug` continúa existiendo, valida permisos owner/admin, normaliza el slug y controla colisiones (409). El slug sigue siendo único globalmente, pero cada dato sigue teniendo `gymId` propio.
-- `GET /public/gyms/{slug}/landing` consulta el gimnasio activo y sus bloques habilitados actuales, ordenados, y responde `gym`, `theme`, `blocks`, `mediaAssets`. Es anónimo; no depende de `landing_published` ni de la tabla `landing_publications`.
-- El repositorio público ofrece imágenes HTTPS únicamente si están referenciadas en las diapositivas de bloques públicos visibles. No expone los archivos privados, `storage_key`, usuarios, pagos ni datos personales.
-- `SettingsService.patch()` rechaza el cambio a `landingPublished`; ese campo de V1 queda de legado sin efecto sobre la visibilidad del sitio.
-- **Se mantiene `V3__landing_publications.sql` sin modificar** por compatibilidad de Flyway; no se vuelve a consultar/escribir su tabla. No ejecutar `DROP TABLE`, cambiar checksums de Flyway ni reconstruir la BD.
-- Los tests `LandingPublicationServiceTest.java` ahora cubren enlace automático, modificación de slug, conflictos y consulta pública sin sesión; dejaron de probar operaciones retiradas.
+No existen landings por sucursal, `landing_publications`, `media_assets` ni rutas `/g/{slug}`.
 
-## Resto de módulos conservados
+## Módulos implementados
 
-Permanecen los controladores, repositorios y services de cuentas, miembros, personal, planes, pagos, ventas, rutinas, calendario, reservas propias, historial de check-ins, dashboard y media-assets. El CRUD de bloques, temas, ordenación, status del gym y generación de slug al crear un gimnasio no cambian de comportamiento.
+| Área | Estado |
+|---|---|
+| Autenticación JWT + refresh | Implementado |
+| Sitio: settings, tema, landing, media | Implementado |
+| Sucursales | Implementado |
+| Miembros y fotos privadas | Implementado |
+| Staff | Implementado |
+| Planes y pagos manuales | Implementado |
+| Calendario, plantillas y reservas | Implementado |
+| Rutinas | Implementado |
+| POS e inventario | Implementado |
+| Check-in QR, códigos y dispositivos | Implementado |
+| Dashboard agregado | Implementado |
+| Auditoría transversal | Implementado por triggers |
 
-Se conserva `USER_API_ENABLED=false` por defecto; para ejecutar altas nuevas de miembros, entrenadores y usuarios se requiere habilitarlo explícitamente y validar permisos. Los endpoints seguros QR/kiosco, almacenamiento de binarios y guest passes siguen pendientes.
+## Contratos clave
 
-## Validación pendiente antes de despliegue
+- Login: `POST /api/v1/auth/login`.
+- Sesión: `GET /api/v1/auth/me`.
+- Refresh: `POST /api/v1/auth/refresh`.
+- Sitio público: `GET /api/v1/public/site`.
+- Settings del sitio: `GET|PATCH /api/v1/site/settings`.
+- Landing: CRUD `/api/v1/site/landing-blocks`.
+- Media del sitio: CRUD `/api/v1/site/media` + `POST /upload`.
+- Sucursales: CRUD `/api/v1/branches` (solo `platformAdmin`).
+- Operación: `/api/v1/branches/{branchId}/...`.
+- Fotos privadas: `/api/v1/branches/{branchId}/members/{memberId}/photo`.
+- Kiosco: `/api/v1/kiosk/...`.
 
-El material entregado sigue siendo un directorio Java `src/` y documentación, **sin `pom.xml`**. Por ello se necesita integrar en el proyecto Maven original y ejecutar en tu equipo:
+## Base de datos
 
-```bash
-mvn clean test
-mvn spring-boot:run
-```
+- Baseline: `src/main/resources/db/schema/schema.sql`.
+- Seed idempotente: `src/main/resources/db/seed/seed.sql`.
+- Idempotencia: `src/main/resources/db/schema/idempotency_operations.sql`.
+- Changelog: `src/main/resources/db/changelog-master.yaml`.
+- Flyway deshabilitado por defecto; el esquema se prepara con Liquibase.
 
-Verificar los siguientes flujos por HTTP: dueño A edita y cambia slug de A, no de B; visitante ve bloques guardados de A inmediatamente después de guardar; slug anterior 404; gimnasio suspendido 404; medios privados no aparecen. Validar Flyway sobre una base nueva y otra con V3 instalada, sin ejecutar migraciones a mano.
+## Validación
 
-Consultar `docs/DECISION_LANDING_ENLACE_DIRECTO.md` para el contrato vigente detallado.
+- `mvn test`: 75 tests, 0 fallos, 17 omitidos.
+- `KioskPostgresIntegrationTest`: 21 tests, 0 fallos, 1 omitido.
+- Esquema, seed e idempotencia aplicados en PostgreSQL 15 limpio.
+- Arranque local con `ddl-auto=validate` y `AdminBootstrap` verificado.
+- Endpoints de sitio, media, sucursales, miembros y fotos verificados por HTTP.
+
+## Pendiente
+
+- QA con navegador real del flujo completo de landing y kiosco.
+- Validación de despliegue en WildFly.
+- Matriz definitiva de permisos por módulo.
+- Sustitución de `alert()`/`confirm()` nativos en el frontend.

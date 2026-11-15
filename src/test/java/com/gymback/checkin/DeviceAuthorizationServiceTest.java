@@ -15,13 +15,13 @@ class DeviceAuthorizationServiceTest {
   var identity=mock(IIdentityRepository.class);
   var crypto=new CheckinCrypto("separate-member-long-secret-for-test-111","separate-csrf-long-secret-for-test-222");
   var service=new DeviceAuthorizationService(sessions,devices,identity,crypto,"https://front.example.test");
-  UUID gym=UUID.randomUUID(),deviceId=UUID.randomUUID();String secret=crypto.newToken();
-  var session=new CheckinDeviceSession();session.gymId=gym;session.deviceId=deviceId;session.sessionTokenHash=crypto.hash(secret);
+  UUID branch=UUID.randomUUID(),deviceId=UUID.randomUUID();String secret=crypto.newToken();
+  var session=new CheckinDeviceSession();session.branchId=branch;session.deviceId=deviceId;session.sessionTokenHash=crypto.hash(secret);
   session.expiresAt=OffsetDateTime.now().plusHours(1);
-  var device=new CheckinDevice();device.id=deviceId;device.gymId=gym;device.active=true;device.activatedAt=OffsetDateTime.now();
+  var device=new CheckinDevice();device.id=deviceId;device.branchId=branch;device.active=true;device.activatedAt=OffsetDateTime.now();
   when(sessions.byHash(crypto.hash(secret))).thenReturn(Optional.of(session));
-  when(devices.findInGym(gym,deviceId)).thenReturn(Optional.of(device));
-  when(identity.isGymActive(gym)).thenReturn(true);when(identity.isModuleEnabled(gym,"checkin")).thenReturn(true);
+  when(devices.findInGym(branch,deviceId)).thenReturn(Optional.of(device));
+  when(identity.isBranchActive(branch)).thenReturn(true);when(identity.isModuleEnabled(branch,"checkin")).thenReturn(true);
   assertEquals(deviceId,service.authenticate(secret).deviceId());
   device.active=false;
   assertThrows(AccessDeniedException.class,()->service.authenticate(secret));
