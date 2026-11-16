@@ -48,8 +48,9 @@ public class ServiceFactory {
   @Bean public com.gymback.modules.site.services.PublicSiteService publicSiteService(
     com.gymback.modules.site.repositories.SiteSettingsRepository settings,
     com.gymback.modules.site.repositories.SiteLandingBlockRepository blocks,
-    com.gymback.modules.site.repositories.SiteMediaAssetRepository media){
-      return new com.gymback.modules.site.services.PublicSiteService(settings,blocks,media);
+    com.gymback.modules.site.repositories.SiteMediaAssetRepository media,
+    com.gymback.modules.branches.interfaces.IBranchRepository branches){
+      return new com.gymback.modules.site.services.PublicSiteService(settings,blocks,media,branches);
   }
 
  @Bean public com.gymback.modules.members.services.MemberService memberService(
@@ -92,7 +93,7 @@ public class ServiceFactory {
   com.gymback.modules.checkin.interfaces.ICheckinAccessCodeRepository accessCodes){
   return new com.gymback.modules.checkin.services.CheckinService(repo,auth,policy,qr,crypto,context,accessCodes);
  }
- @Bean public com.gymback.modules.settings.services.SettingsService settingsService(com.gymback.modules.settings.interfaces.ISettingsRepository repo,AuthorizationService auth){return new com.gymback.modules.settings.services.SettingsService(repo,auth);}
+ @Bean public com.gymback.modules.settings.services.SettingsService settingsService(com.gymback.modules.settings.interfaces.ISettingsRepository repo,com.gymback.modules.site.repositories.SiteSettingsRepository siteSettings,AuthorizationService auth){return new com.gymback.modules.settings.services.SettingsService(repo,siteSettings,auth);}
 
  @Bean public com.gymback.modules.calendar.services.ReservationService reservationService(com.gymback.modules.calendar.interfaces.IReservationRepository repo,AuthorizationService auth){return new com.gymback.modules.calendar.services.ReservationService(repo,auth);}
  // Nuevos casos de uso integrados mediante la misma factoría que los services existentes.

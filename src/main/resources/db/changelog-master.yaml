@@ -3,7 +3,13 @@ databaseChangeLog:
       file: schema/schema.sql
       relativeToChangelogFile: true
   - include:
+      file: schema/site_modules.sql
+      relativeToChangelogFile: true
+  - include:
       file: seed/seed.sql
+      relativeToChangelogFile: true
+  - include:
+      file: seed/seed_platform_admin.sql
       relativeToChangelogFile: true
   - include:
       file: schema/idempotency_operations.sql

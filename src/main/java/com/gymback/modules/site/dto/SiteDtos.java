@@ -9,7 +9,8 @@ public final class SiteDtos {
   public record SiteSettingsPatch(
       String siteName, String shortName, UUID logoAssetId, String contactEmail,
       String contactPhone, String address, String timezone, String currency,
-      String themePreset, Map<String, Object> themeOverrides) {}
+      String themePreset, Map<String, Object> themeOverrides,
+      Boolean modulesGlobal, Map<String, Object> globalModules) {}
 
   public record SiteLandingBlockRequest(
       String blockType, Integer sortOrder, Boolean enabled, Map<String, Object> blockData) {}

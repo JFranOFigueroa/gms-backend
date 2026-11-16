@@ -50,7 +50,7 @@ No existen landings por sucursal, `landing_publications`, `media_assets` ni ruta
 
 ## Validación
 
-- `mvn test`: 75 tests, 0 fallos, 17 omitidos.
+- `mvn test`: 78 tests, 0 fallos, 17 omitidos.
 - `KioskPostgresIntegrationTest`: 21 tests, 0 fallos, 1 omitido.
 - Esquema, seed e idempotencia aplicados en PostgreSQL 15 limpio.
 - Arranque local con `ddl-auto=validate` y `AdminBootstrap` verificado.

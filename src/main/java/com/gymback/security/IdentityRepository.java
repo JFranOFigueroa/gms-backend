@@ -2,6 +2,7 @@ package com.gymback.security;
 import com.gymback.security.dto.BranchAccess;
 import com.gymback.modules.branches.model.Branch;
 import com.gymback.modules.members.model.BranchMember;
+import com.gymback.modules.site.model.SiteSettings;
 import com.gymback.shared.persistence.model.*;
 import jakarta.persistence.EntityManager;
 import org.springframework.stereotype.Repository;
@@ -31,6 +32,11 @@ public class IdentityRepository implements IIdentityRepository {
     Branch branch=em.find(Branch.class,branchId);return branch!=null && "active".equals(branch.getStatus());
   }
   @Override public boolean isModuleEnabled(UUID branchId,String module){
+    SiteSettings site=em.find(SiteSettings.class,SiteSettings.SINGLETON_ID);
+    if(site!=null && site.getDeletedAt()==null && site.isModulesGlobal()){
+      Object enabled=site.getGlobalModules()==null?null:site.getGlobalModules().get(module);
+      return Boolean.TRUE.equals(enabled);
+    }
     return em.createQuery("select count(f) from BranchModule f where f.branchId=:branch and f.moduleKey=:module and f.enabled=true",Long.class)
       .setParameter("branch",branchId).setParameter("module",module).getSingleResult()>0;
   }

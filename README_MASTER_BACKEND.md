@@ -231,7 +231,7 @@ Health: `GET /api/v1/health`.
 
 ## 8. Validación conocida
 
-- `mvn test`: 75 tests, 0 fallos, 17 omitidos.
+- `mvn test`: 78 tests, 0 fallos, 17 omitidos.
 - `KioskPostgresIntegrationTest` con PostgreSQL 15: 21 tests, 0 fallos, 1 omitido.
 - Esquema, seed e idempotencia aplicados en base limpia.
 - Arranque local con `ddl-auto=validate` y `AdminBootstrap` verificado.

@@ -12,7 +12,9 @@ import java.util.*;
 
 /**
  * Alta inicial del administrador del sitio.
- * No usa SQL con contraseñas: la cuenta se crea aquí con BCrypt.
+ * La contraseña de una cuenta nueva proviene de BOOTSTRAP_ADMIN_PASSWORD.
+ * El seed puede crear la cuenta con una contraseña inicial; este bootstrap
+ * nunca sobrescribe una contraseña existente.
  * Si existe la "Sucursal Demo" del seed, el administrador también queda como owner.
  */
 @Component
@@ -43,6 +45,11 @@ public class AdminBootstrap implements ApplicationRunner {
       user.passwordHash = encoder.encode(password);
       user.status = "active";
       em.persist(user);
+      em.flush();
+    } else if (user.passwordHash == null || user.passwordHash.isBlank()) {
+      // Compatibilidad con seeds que crean la cuenta como "invited" o sin hash.
+      user.passwordHash = encoder.encode(password);
+      if ("invited".equals(user.status)) user.status = "active";
       em.flush();
     }
     if (!accounts.isPlatformAdmin(user.id)) accounts.insertPlatformAdmin(user.id);

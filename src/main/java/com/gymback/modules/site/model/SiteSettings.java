@@ -11,6 +11,16 @@ import java.util.*;
 @Table(name = "site_settings")
 public class SiteSettings {
   public static final UUID SINGLETON_ID = UUID.fromString("00000000-0000-0000-0000-000000000001");
+  public static final List<String> MODULE_KEYS = List.of("calendar", "routines", "checkin", "pos");
+
+  public static Map<String, Object> defaultGlobalModules() {
+    Map<String, Object> modules = new LinkedHashMap<>();
+    modules.put("calendar", false);
+    modules.put("routines", true);
+    modules.put("checkin", true);
+    modules.put("pos", true);
+    return modules;
+  }
 
   @Id @Column(name = "id", nullable = false)
   private UUID id = SINGLETON_ID;
@@ -35,6 +45,10 @@ public class SiteSettings {
   private String themePreset = "crossfit-dark";
   @JdbcTypeCode(SqlTypes.JSON) @Column(name = "theme_overrides")
   private Map<String, Object> themeOverrides = new LinkedHashMap<>();
+  @Column(name = "modules_global", nullable = false)
+  private boolean modulesGlobal = false;
+  @JdbcTypeCode(SqlTypes.JSON) @Column(name = "global_modules", nullable = false)
+  private Map<String, Object> globalModules = defaultGlobalModules();
   @Column(name = "created_at") private OffsetDateTime createdAt = OffsetDateTime.now();
   @Column(name = "updated_at") private OffsetDateTime updatedAt = OffsetDateTime.now();
   @Column(name = "created_by") private UUID createdBy;
@@ -63,6 +77,10 @@ public class SiteSettings {
   public void setThemePreset(String value) { this.themePreset = value; }
   public Map<String, Object> getThemeOverrides() { return themeOverrides; }
   public void setThemeOverrides(Map<String, Object> value) { this.themeOverrides = value; }
+  public boolean isModulesGlobal() { return modulesGlobal; }
+  public void setModulesGlobal(boolean value) { this.modulesGlobal = value; }
+  public Map<String, Object> getGlobalModules() { return globalModules; }
+  public void setGlobalModules(Map<String, Object> value) { this.globalModules = value; }
   public OffsetDateTime getCreatedAt() { return createdAt; }
   public void setCreatedAt(OffsetDateTime value) { this.createdAt = value; }
   public OffsetDateTime getUpdatedAt() { return updatedAt; }

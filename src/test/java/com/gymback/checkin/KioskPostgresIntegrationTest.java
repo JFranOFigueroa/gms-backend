@@ -258,7 +258,10 @@ class KioskPostgresIntegrationTest {
   Member m=member("active");assertStatus(200,call("GET",root+"/reservations/me",null,m.token(),null,null));
   assertStatus(200,call("GET",root+"/members/me",null,m.token(),null,null));
   assertStatus(404,call("GET","/public/media/"+UUID.randomUUID(),null,null,null,null));
-  assertStatus(200,call("GET","/public/site",null,null,null,null));
+  var publicSite=call("GET","/public/site",null,null,null,null);assertStatus(200,publicSite);
+  assertTrue(body(publicSite).path("branches").isArray());
+  assertTrue(body(publicSite).path("branches").size()>=1);
+  assertFalse(body(publicSite).path("branches").get(0).path("code").asText().isBlank());
  }
  @Test @EnabledIfEnvironmentVariable(named="GMS_TEST_BROWSER_FRONTEND",matches=".+")
  void chromeRunsActualFrontendActivationAndReload() throws Exception {

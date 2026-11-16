@@ -20,7 +20,9 @@ El esquema se gestiona externamente con **Liquibase**. La aplicación no ejecuta
 Archivos:
 
 - `src/main/resources/db/schema/schema.sql`: baseline consolidado de sitio, sucursales, auditoría y `member_photos`.
+- `src/main/resources/db/schema/site_modules.sql`: modo de módulos globales del sitio (`modules_global`, `global_modules`).
 - `src/main/resources/db/seed/seed.sql`: seed idempotente de “Sucursal Demo”, settings del sitio, imágenes y bloques iniciales.
+- `src/main/resources/db/seed/seed_platform_admin.sql`: cuenta inicial del administrador del sistema y su rol global.
 - `src/main/resources/db/schema/idempotency_operations.sql`: tabla de idempotencia de operaciones.
 - `src/main/resources/db/changelog-master.yaml`: changelog raíz.
 
@@ -35,7 +37,7 @@ liquibase --defaults-file=liquibase.properties update
 
 - `liquibase.properties` está ignorado por Git; no versionar credenciales.
 - El baseline está pensado para una base nueva o vacía. Si el esquema ya existe, usar `changelog-sync` o evaluar la transición con un DBA.
-- El seed no incluye contraseñas. La cuenta administradora se crea con `AdminBootstrap`.
+- El seed de sucursal/sitio no contiene contraseñas. El changeset `seed_platform_admin.sql` crea la cuenta administradora inicial con contraseña de arranque; debe cambiarse fuera de la UI. `AdminBootstrap` solo complementa cuentas sin contraseña.
 
 ## Desarrollo local
 
@@ -117,7 +119,7 @@ Opcionales:
 - `BOOTSTRAP_ADMIN_PASSWORD` (mínimo 12 caracteres).
 - `USER_API_ENABLED`.
 
-`AdminBootstrap` solo crea el administrador si `BOOTSTRAP_ADMIN_PASSWORD` está definido. También lo vincula como `owner` de “Sucursal Demo” si la sucursal existe.
+`AdminBootstrap` solo crea el administrador si `BOOTSTRAP_ADMIN_PASSWORD` está definido y la cuenta no existe. Si el seed ya creó `admin@gms.local`, no sobrescribe su contraseña. También lo vincula como `owner` de “Sucursal Demo” si la sucursal existe.
 
 ### Context root
 
@@ -138,7 +140,8 @@ Se mantiene `spring.jpa.hibernate.ddl-auto=validate`. Si el esquema de Liquibase
 
 ## Validación realizada
 
-- `mvn test`: 75 tests, 0 fallos, 17 omitidos (integración PostgreSQL opt-in).
+- `mvn test`: 78 tests, 0 fallos, 17 omitidos (integración PostgreSQL opt-in).
 - `KioskPostgresIntegrationTest` con PostgreSQL 15: 21 tests, 0 fallos, 1 omitido.
-- `schema.sql`, `seed.sql` y `idempotency_operations.sql` aplicados en una base limpia; seed reejecutado sin duplicados.
+- `schema.sql`, `site_modules.sql`, `seed.sql`, `seed_platform_admin.sql` e `idempotency_operations.sql` aplicados en una base limpia; seeds reejecutados sin duplicados.
+- La cuenta `admin@gms.local` del seed se validó como `active`, con hash BCrypt verificable y rol en `platform_admins`.
 - Arranque local con `ddl-auto=validate`, `AdminBootstrap`, landing pública, settings, media y fotos privadas verificados por HTTP.
