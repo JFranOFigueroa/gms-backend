@@ -1,3 +1,3 @@
 # Auditoría transversal
 
-Implementación bajo `interfaces/`, `repositories/`, `services/`, `routes/`. Lecturas autorizadas por gimnasio y admin global. SQL/trigger: Flyway V4. Véase `docs/CAMBIOS_IMPLEMENTADOS_AUDITORIA.md`.
+Implementación bajo `interfaces/`, `repositories/`, `services/`, `routes/`. Lecturas autorizadas por sucursal y admin global. SQL/triggers: baseline de Liquibase. Véase `docs/ARQUITECTURA_Y_PATRONES.md`.

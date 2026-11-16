@@ -1,7 +1,7 @@
 package com.gymback.modules.users.repositories;
 import com.gymback.modules.users.interfaces.IUserRepository;
 import com.gymback.shared.persistence.model.*;
-import com.gymback.modules.members.model.GymMember;
+import com.gymback.modules.members.model.BranchMember;
 import jakarta.persistence.*;
 import org.springframework.stereotype.Repository;
 import java.util.*;
@@ -18,11 +18,11 @@ public class UserRepository implements IUserRepository {
       .setParameter("email",email.toLowerCase(Locale.ROOT)).getResultStream().findFirst().map(this::view);
   }
   @Override public Optional<Map<String,Object>> byId(UUID id){return Optional.ofNullable(em.find(UserAccount.class,id)).map(this::view);}
-  @Override public Optional<Map<String,Object>> byEmailInGym(String email,UUID gym){
+  @Override public Optional<Map<String,Object>> byEmailInGym(String email,UUID branch){
     String hql="select distinct u from UserAccount u where lower(u.email)=:email and ("+
-      "exists (select m.id from GymMember m where m.gymId=:gym and m.userId=u.id) or " +
-      "exists (select r.userId from GymStaffRole r where r.gymId=:gym and r.userId=u.id and r.deletedAt is null))";
-    return em.createQuery(hql,UserAccount.class).setParameter("gym",gym).setParameter("email",email.toLowerCase(Locale.ROOT))
+      "exists (select m.id from BranchMember m where m.branchId=:branch and m.userId=u.id) or " +
+      "exists (select r.userId from BranchStaffRole r where r.branchId=:branch and r.userId=u.id and r.deletedAt is null))";
+    return em.createQuery(hql,UserAccount.class).setParameter("branch",branch).setParameter("email",email.toLowerCase(Locale.ROOT))
       .getResultStream().findFirst().map(this::view);
   }
   @Override public Map<String,Object> create(String name,String email,String phone,String hash,String status){

@@ -41,7 +41,7 @@ public class KioskController {
  }
  @PostMapping("/qr/issue") public ResponseEntity<IssuedQr> issue(HttpServletRequest http){
   KioskPrincipal principal=auth.requireMutation(http);
-  return ResponseEntity.ok().cacheControl(CacheControl.noStore()).body(qr.issueGym(principal));
+  return ResponseEntity.ok().cacheControl(CacheControl.noStore()).body(qr.issueBranch(principal));
  }
  @PostMapping("/checkins/validate-code") public ResponseEntity<CheckinResult> validateCode(
    @Valid @RequestBody ValidateCode request,@RequestHeader("Idempotency-Key")String idempotencyKey,HttpServletRequest http){

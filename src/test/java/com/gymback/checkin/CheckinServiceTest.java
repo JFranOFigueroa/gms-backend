@@ -20,34 +20,34 @@ class CheckinServiceTest {
  private final ICheckinAccessCodeRepository codes=mock(ICheckinAccessCodeRepository.class);
  private final CheckinService service=new CheckinService(repo,auth,policy,qr,crypto,context,codes);
  @Test void manualContractRemainsUnchanged(){
-  UUID gym=UUID.randomUUID(),member=UUID.randomUUID(),user=UUID.randomUUID(),event=UUID.randomUUID();
-  when(auth.requireModule(eq(gym),eq("checkin"),any(String[].class))).thenReturn(new Actor(user,false));
+  UUID branch=UUID.randomUUID(),member=UUID.randomUUID(),user=UUID.randomUUID(),event=UUID.randomUUID();
+  when(auth.requireModule(eq(branch),eq("checkin"),any(String[].class))).thenReturn(new Actor(user,false));
   when(auth.actor()).thenReturn(new Actor(user,false));
-  when(policy.evaluate(gym,member)).thenReturn(new MemberAccessPolicy.Decision(LocalDate.of(2026,11,5),true,"granted"));
-  when(repo.record(eq(gym),eq(member),any(LocalDate.class),eq(true),eq("allowed"),eq(user))).thenReturn(event);
-  var result=service.manual(gym,new CheckinRequest(member));
+  when(policy.evaluate(branch,member)).thenReturn(new MemberAccessPolicy.Decision(LocalDate.of(2026,11,5),true,"granted"));
+  when(repo.record(eq(branch),eq(member),any(LocalDate.class),eq(true),eq("allowed"),eq(user))).thenReturn(event);
+  var result=service.manual(branch,new CheckinRequest(member));
   assertEquals(event,result.get("eventId"));assertEquals("allowed",result.get("reason"));
   assertEquals(true,result.get("allowed"));
  }
- @Test void gymQrRetryReturnsPriorResultWithoutNewEvent(){
-  UUID gym=UUID.randomUUID(),member=UUID.randomUUID(),user=UUID.randomUUID(),device=UUID.randomUUID();
-  when(auth.requireModule(eq(gym),eq("checkin"),any(String[].class))).thenReturn(new Actor(user,false));
-  when(repo.memberIdForUser(gym,user)).thenReturn(Optional.of(member));
-  when(qr.validateGym("sample-opaque",gym)).thenReturn(new CheckinQrService.GymTokenState(true,"granted",device));
-  when(policy.evaluate(gym,member)).thenReturn(new MemberAccessPolicy.Decision(LocalDate.of(2026,11,5),true,"granted"));
-  when(repo.priorAttempt(eq(gym),anyString())).thenReturn(Optional.empty());
-  when(repo.recordQr(eq(gym),eq(member),eq(device),eq("kiosk_qr"),any(LocalDate.class),eq(true),eq("granted"),eq(user),anyString(),anyString()))
+ @Test void branchQrRetryReturnsPriorResultWithoutNewEvent(){
+  UUID branch=UUID.randomUUID(),member=UUID.randomUUID(),user=UUID.randomUUID(),device=UUID.randomUUID();
+  when(auth.requireModule(eq(branch),eq("checkin"),any(String[].class))).thenReturn(new Actor(user,false));
+  when(repo.memberIdForUser(branch,user)).thenReturn(Optional.of(member));
+  when(qr.validateBranch("sample-opaque",branch)).thenReturn(new CheckinQrService.BranchTokenState(true,"granted",device));
+  when(policy.evaluate(branch,member)).thenReturn(new MemberAccessPolicy.Decision(LocalDate.of(2026,11,5),true,"granted"));
+  when(repo.priorAttempt(eq(branch),anyString())).thenReturn(Optional.empty());
+  when(repo.recordQr(eq(branch),eq(member),eq(device),eq("kiosk_qr"),any(LocalDate.class),eq(true),eq("granted"),eq(user),anyString(),anyString()))
     .thenReturn(new ICheckinRepository.Attempt(true,"granted",LocalDate.of(2026,11,5),OffsetDateTime.now(),"fingerprint"));
-  service.scanGym(gym,"sample-opaque",UUID.randomUUID().toString());
-  verify(repo).recordQr(eq(gym),eq(member),eq(device),eq("kiosk_qr"),any(LocalDate.class),eq(true),eq("granted"),eq(user),anyString(),anyString());
+  service.scanBranch(branch,"sample-opaque",UUID.randomUUID().toString());
+  verify(repo).recordQr(eq(branch),eq(member),eq(device),eq("kiosk_qr"),any(LocalDate.class),eq(true),eq("granted"),eq(user),anyString(),anyString());
  }
  @Test void reusedIdempotencyKeyDifferentPayloadIsConflict(){
-  UUID gym=UUID.randomUUID(),member=UUID.randomUUID(),user=UUID.randomUUID();
-  when(auth.requireModule(eq(gym),eq("checkin"),any(String[].class))).thenReturn(new Actor(user,false));
-  when(repo.memberIdForUser(gym,user)).thenReturn(Optional.of(member));
-  when(qr.validateGym(anyString(),eq(gym))).thenReturn(new CheckinQrService.GymTokenState(false,"invalid_token",null));
-  when(repo.priorAttempt(eq(gym),anyString())).thenReturn(Optional.of(new ICheckinRepository.Attempt(true,"granted",LocalDate.now(),OffsetDateTime.now(),"different-body")));
-  assertThrows(ConflictException.class,()->service.scanGym(gym,"another-value",UUID.randomUUID().toString()));
+  UUID branch=UUID.randomUUID(),member=UUID.randomUUID(),user=UUID.randomUUID();
+  when(auth.requireModule(eq(branch),eq("checkin"),any(String[].class))).thenReturn(new Actor(user,false));
+  when(repo.memberIdForUser(branch,user)).thenReturn(Optional.of(member));
+  when(qr.validateBranch(anyString(),eq(branch))).thenReturn(new CheckinQrService.BranchTokenState(false,"invalid_token",null));
+  when(repo.priorAttempt(eq(branch),anyString())).thenReturn(Optional.of(new ICheckinRepository.Attempt(true,"granted",LocalDate.now(),OffsetDateTime.now(),"different-body")));
+  assertThrows(ConflictException.class,()->service.scanBranch(branch,"another-value",UUID.randomUUID().toString()));
   verify(repo,never()).recordQr(any(),any(),any(),any(),any(),anyBoolean(),any(),any(),any(),any());
  }
 }

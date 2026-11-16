@@ -45,15 +45,15 @@ public class CheckinCrypto {
  public boolean matchesCsrf(String sessionSecret,String provided){
   return provided!=null && MessageDigest.isEqual(csrf(sessionSecret).getBytes(StandardCharsets.US_ASCII),provided.getBytes(StandardCharsets.US_ASCII));
  }
- public String memberQr(UUID gym,UUID member,OffsetDateTime now){
+ public String memberQr(UUID branch,UUID member,OffsetDateTime now){
   long issued=now.toEpochSecond();long expires=issued+30;
-  String claim=String.join("|","1","gms","kiosk","member-checkin",gym.toString(),member.toString(),
+  String claim=String.join("|","1","gms","kiosk","member-checkin",branch.toString(),member.toString(),
     Long.toString(issued),Long.toString(expires),UUID.randomUUID().toString());
   String payload=Base64.getUrlEncoder().withoutPadding().encodeToString(claim.getBytes(StandardCharsets.UTF_8));
   String signature=Base64.getUrlEncoder().withoutPadding().encodeToString(hmac(memberKey,payload.getBytes(StandardCharsets.US_ASCII)));
   return payload+"."+signature;
  }
- public record MemberClaims(UUID gym,UUID member,OffsetDateTime expiresAt){}
+ public record MemberClaims(UUID branch,UUID member,OffsetDateTime expiresAt){}
  public MemberClaims verifyMemberQr(String input,OffsetDateTime now){
   if(input==null||input.length()>2048||input.length()<40)throw new DomainException("Credencial inválida");
   String[] chunks=input.split("\\.",-1);if(chunks.length!=2)throw new DomainException("Credencial inválida");

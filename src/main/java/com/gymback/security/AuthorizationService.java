@@ -19,17 +19,26 @@ public class AuthorizationService {
     return new Actor(id,users.isPlatformAdmin(id));
   }
   public Actor platformAdmin() {Actor a=actor();if(!a.platformAdmin())throw new AccessDeniedException("Solo admin global");return a;}
-  public Actor require(UUID gymId,String...roles) {
-    if(gymId==null)throw new IllegalArgumentException("gymId obligatorio");
-    Actor a=actor();if(!users.isGymActive(gymId))throw new AccessDeniedException("Gimnasio inactivo");if(a.platformAdmin())return a;
-    Set<String> actual=users.activeRoles(a.id(),gymId);
-    if(Arrays.stream(roles).noneMatch(actual::contains))throw new AccessDeniedException("Sin permiso en gimnasio");
+  /** Administra la marca/sitio: admin global o propietario de al menos una sucursal activa. */
+  public Actor siteAdmin() {
+    Actor a=actor();
+    if(a.platformAdmin())return a;
+    boolean owner=users.branchesForUser(a.id(),false).stream()
+      .anyMatch(branch->branch.roles().contains("owner"));
+    if(!owner)throw new AccessDeniedException("Solo administradores del sitio");
     return a;
   }
-  public boolean hasRole(UUID gymId,String role){Actor a=actor();return a.platformAdmin() || users.activeRoles(a.id(),gymId).contains(role);}
-  public Actor requireModule(UUID gym,String module,String...roles){
-    Actor a=require(gym,roles);
-    if(!users.isModuleEnabled(gym,module))throw new AccessDeniedException("Módulo deshabilitado");
+  public Actor require(UUID branchId,String...roles) {
+    if(branchId==null)throw new IllegalArgumentException("branchId obligatorio");
+    Actor a=actor();if(!users.isBranchActive(branchId))throw new AccessDeniedException("Sucursal inactiva");if(a.platformAdmin())return a;
+    Set<String> actual=users.activeRoles(a.id(),branchId);
+    if(Arrays.stream(roles).noneMatch(actual::contains))throw new AccessDeniedException("Sin permiso en sucursal");
+    return a;
+  }
+  public boolean hasRole(UUID branchId,String role){Actor a=actor();return a.platformAdmin() || users.activeRoles(a.id(),branchId).contains(role);}
+  public Actor requireModule(UUID branch,String module,String...roles){
+    Actor a=require(branch,roles);
+    if(!users.isModuleEnabled(branch,module))throw new AccessDeniedException("Módulo deshabilitado");
     return a;
   }
 }

@@ -15,6 +15,6 @@ public class UserAccount extends AuditedRecord {
   @Column(name="phone") public String phone;
   @Column(name="password_hash") public String passwordHash;
   @Column(name="status") public String status = "invited";
-  @Column(name="default_gym_id") public UUID defaultGymId;
+  @Column(name="default_branch_id") public UUID defaultBranchId;
   @Column(name="email_verified_at") public OffsetDateTime emailVerifiedAt;
 }

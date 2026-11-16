@@ -10,7 +10,7 @@ import org.hibernate.type.SqlTypes;
 @Entity @Table(name="checkin_events")
 public class CheckinEntry extends AuditedRecord {
   @Id @Column(name="id") public UUID id = UUID.randomUUID();
-  @Column(name="gym_id") public UUID gymId;
+  @Column(name="branch_id") public UUID branchId;
   @Column(name="member_id") public UUID memberId;
   @Column(name="guest_pass_id") public UUID guestPassId;
   @Column(name="staff_user_id") public UUID staffUserId;

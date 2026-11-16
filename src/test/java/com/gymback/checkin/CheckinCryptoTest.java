@@ -8,10 +8,10 @@ import static org.junit.jupiter.api.Assertions.*;
 class CheckinCryptoTest {
  private final CheckinCrypto crypto=new CheckinCrypto("secret-member-qr-very-long-and-distinct-00001","secret-kiosk-csrf-very-long-and-distinct-00002");
  @Test void signedMemberQrHasGymPurposeAndThirtySecondExpiry(){
-  UUID gym=UUID.randomUUID(),member=UUID.randomUUID();OffsetDateTime issued=OffsetDateTime.now();
-  String qr=crypto.memberQr(gym,member,issued);
+  UUID branch=UUID.randomUUID(),member=UUID.randomUUID();OffsetDateTime issued=OffsetDateTime.now();
+  String qr=crypto.memberQr(branch,member,issued);
   var claims=crypto.verifyMemberQr(qr,issued.plusSeconds(2));
-  assertEquals(gym,claims.gym());assertEquals(member,claims.member());
+  assertEquals(branch,claims.branch());assertEquals(member,claims.member());
   assertThrows(DomainException.class,()->crypto.verifyMemberQr(qr,issued.plusSeconds(31)));
  }
  @Test void rejectsTamperingAndStaticMemberCodes(){

@@ -5,21 +5,21 @@ import jakarta.validation.Valid;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.http.*;
 import java.util.*;
-@RestController @RequestMapping("/api/v1/gyms/{gymId}/checkin-devices")
+@RestController @RequestMapping("/api/v1/branches/{branchId}/checkin-devices")
 public class CheckinDeviceController {
  private final KioskDeviceService service;
  public CheckinDeviceController(KioskDeviceService service){this.service=service;}
- @GetMapping public List<DeviceView> list(@PathVariable UUID gymId){return service.list(gymId);}
- @PostMapping public ResponseEntity<DeviceCreated> create(@PathVariable UUID gymId,@Valid @RequestBody CreateDevice req){
-  return ResponseEntity.status(HttpStatus.CREATED).cacheControl(CacheControl.noStore()).body(service.create(gymId,req));
+ @GetMapping public List<DeviceView> list(@PathVariable UUID branchId){return service.list(branchId);}
+ @PostMapping public ResponseEntity<DeviceCreated> create(@PathVariable UUID branchId,@Valid @RequestBody CreateDevice req){
+  return ResponseEntity.status(HttpStatus.CREATED).cacheControl(CacheControl.noStore()).body(service.create(branchId,req));
  }
- @PostMapping("/{deviceId}/reissue-activation") public ResponseEntity<DeviceCreated> reissue(@PathVariable UUID gymId,@PathVariable UUID deviceId){
-  return ResponseEntity.ok().cacheControl(CacheControl.noStore()).body(service.reissue(gymId,deviceId));
+ @PostMapping("/{deviceId}/reissue-activation") public ResponseEntity<DeviceCreated> reissue(@PathVariable UUID branchId,@PathVariable UUID deviceId){
+  return ResponseEntity.ok().cacheControl(CacheControl.noStore()).body(service.reissue(branchId,deviceId));
  }
- @PatchMapping("/{deviceId}") public DeviceView update(@PathVariable UUID gymId,@PathVariable UUID deviceId,@Valid @RequestBody UpdateDevice req){
-  return service.change(gymId,deviceId,req);
+ @PatchMapping("/{deviceId}") public DeviceView update(@PathVariable UUID branchId,@PathVariable UUID deviceId,@Valid @RequestBody UpdateDevice req){
+  return service.change(branchId,deviceId,req);
  }
- @DeleteMapping("/{deviceId}") public ResponseEntity<Void> delete(@PathVariable UUID gymId,@PathVariable UUID deviceId){
-  service.delete(gymId,deviceId);return ResponseEntity.noContent().build();
+ @DeleteMapping("/{deviceId}") public ResponseEntity<Void> delete(@PathVariable UUID branchId,@PathVariable UUID deviceId){
+  service.delete(branchId,deviceId);return ResponseEntity.noContent().build();
  }
 }

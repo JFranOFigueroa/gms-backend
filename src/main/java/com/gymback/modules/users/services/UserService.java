@@ -36,13 +36,13 @@ public class UserService {
     return Map.of("items",repo.list(query,status,limit,offset),"total",repo.count(query,status),"offset",offset,"limit",limit);
   }
   @Transactional(readOnly=true) public Map<String,Object> one(UUID id){admin();return repo.byId(id).orElseThrow(()->new NotFoundException("Usuario no encontrado"));}
-  @Transactional(readOnly=true) public Map<String,Object> search(String email,UUID gymId){
+  @Transactional(readOnly=true) public Map<String,Object> search(String email,UUID branchId){
     enabled();var actor=auth.actor();
     String target=email(email);
     if(actor.platformAdmin())return repo.byEmail(target).orElseThrow(()->new NotFoundException("Cuenta no encontrada"));
-    if(gymId==null)throw new AccessDeniedException("gymId obligatorio para owner");
-    auth.require(gymId,"owner");
-    Map<String,Object> found=repo.byEmailInGym(target,gymId).orElseThrow(()->new NotFoundException("Cuenta no encontrada"));
+    if(branchId==null)throw new AccessDeniedException("branchId obligatorio para owner");
+    auth.require(branchId,"owner");
+    Map<String,Object> found=repo.byEmailInGym(target,branchId).orElseThrow(()->new NotFoundException("Cuenta no encontrada"));
     return Map.of("id",found.get("id"),"fullName",found.get("fullName"),"email",found.get("email"),"status",found.get("status"));
   }
   @Transactional public Map<String,Object> patch(UUID id,UserPatchRequest req){admin();

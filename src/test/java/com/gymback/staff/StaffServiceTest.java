@@ -13,22 +13,22 @@ class StaffServiceTest {
   @Test void createsRelationOnlyForExistingActiveUser() {
     var accounts=mock(IIdentityRepository.class);var auth=mock(AuthorizationService.class);
     var staff=mock(IStaffRepository.class);
-    UUID user=UUID.randomUUID(),gym=UUID.randomUUID(),actor=UUID.randomUUID();
-    when(auth.require(eq(gym),any(String[].class))).thenReturn(new Actor(actor,true));
+    UUID user=UUID.randomUUID(),branch=UUID.randomUUID(),actor=UUID.randomUUID();
+    when(auth.require(eq(branch),any(String[].class))).thenReturn(new Actor(actor,true));
     when(auth.actor()).thenReturn(new Actor(actor,true));
     when(accounts.findCredentialsById(user)).thenReturn(Optional.of(new IIdentityRepository.UserCredentials(
       user,"Entrenador","coach@example.test","hash","active",null)));
-    when(staff.get(gym,user)).thenReturn(Map.of("id",user,"roles",List.of("trainer")));
+    when(staff.get(branch,user)).thenReturn(Map.of("id",user,"roles",List.of("trainer")));
     var service=new StaffService(auth,accounts,staff);
-    assertEquals(user,service.add(gym,new StaffRequest(user,"trainer")).get("id"));
-    verify(accounts).assignStaff(user,gym,"trainer",actor);
+    assertEquals(user,service.add(branch,new StaffRequest(user,"trainer")).get("id"));
+    verify(accounts).assignStaff(user,branch,"trainer",actor);
   }
   @Test void refusesAmbiguousMultiRoleChange() {
     var accounts=mock(IIdentityRepository.class);var auth=mock(AuthorizationService.class);
-    UUID user=UUID.randomUUID(),gym=UUID.randomUUID();
-    when(accounts.activeStaffRoles(user,gym)).thenReturn(Set.of("owner","trainer"));
+    UUID user=UUID.randomUUID(),branch=UUID.randomUUID();
+    when(accounts.activeStaffRoles(user,branch)).thenReturn(Set.of("owner","trainer"));
     var service=new StaffService(auth,accounts,mock(IStaffRepository.class));
-    assertThrows(DomainException.class,()->service.change(gym,user,new StaffRequest(null,"trainer")));
+    assertThrows(DomainException.class,()->service.change(branch,user,new StaffRequest(null,"trainer")));
     verify(accounts,never()).deactivateStaff(any(),any());
   }
 }

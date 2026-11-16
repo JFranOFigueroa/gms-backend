@@ -9,11 +9,11 @@ import java.util.*;
 class BaseCrudTenantTest {
  @Test void lookupDoesNotLeakAcrossGyms(){
    EntityManager em=mock(EntityManager.class);
-   Product p=new Product();UUID gymA=UUID.randomUUID();p.setGymId(gymA);
+   Product p=new Product();UUID branchA=UUID.randomUUID();p.setBranchId(branchA);
    when(em.find(Product.class,p.getId())).thenReturn(p);
    var repo=new ProductRepository(em);
    assertTrue(repo.get(p.getId(),UUID.randomUUID()).isEmpty());
-   assertTrue(repo.get(p.getId(),gymA).isPresent());
+   assertTrue(repo.get(p.getId(),branchA).isPresent());
    assertThrows(IllegalArgumentException.class,()->repo.get(p.getId(),null));
  }
 }

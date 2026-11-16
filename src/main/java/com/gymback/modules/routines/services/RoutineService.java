@@ -16,43 +16,43 @@ public class RoutineService extends BaseService<Routine> {
                         IRoutineStructureRepository structure) {
     super(repo,audit);this.auth=auth;this.structure=structure;this.routines=repo;
   }
-  private boolean mayViewDrafts(UUID gym, Actor actor) {
-    return actor.platformAdmin() || auth.hasRole(gym,"owner") || auth.hasRole(gym,"trainer");
+  private boolean mayViewDrafts(UUID branch, Actor actor) {
+    return actor.platformAdmin() || auth.hasRole(branch,"owner") || auth.hasRole(branch,"trainer");
   }
   @Transactional(readOnly=true)
-  public List<RoutineView> all(UUID gym,int offset,int limit) {
-    Actor actor=auth.require(gym,"owner","trainer","member");
+  public List<RoutineView> all(UUID branch,int offset,int limit) {
+    Actor actor=auth.require(branch,"owner","trainer","member");
     // Filtrar ANTES de paginar: no traer borradores desde la base para un miembro.
-    List<Routine> visible=mayViewDrafts(gym,actor)
-      ? routines.list(gym,offset,limit)
-      : routines.getWhere(gym,(root,query,cb)->cb.isTrue(root.get("published")),offset,limit);
-    return visible.stream().map(r->view(gym,r)).toList();
+    List<Routine> visible=mayViewDrafts(branch,actor)
+      ? routines.list(branch,offset,limit)
+      : routines.getWhere(branch,(root,query,cb)->cb.isTrue(root.get("published")),offset,limit);
+    return visible.stream().map(r->view(branch,r)).toList();
   }
   @Transactional(readOnly=true)
-  public RoutineView one(UUID gym,UUID id) {
-    Actor actor=auth.require(gym,"owner","trainer","member");
-    Routine r=getOr404(id,gym);
-    if (!mayViewDrafts(gym,actor) && !Boolean.TRUE.equals(r.getPublished())) {
+  public RoutineView one(UUID branch,UUID id) {
+    Actor actor=auth.require(branch,"owner","trainer","member");
+    Routine r=getOr404(id,branch);
+    if (!mayViewDrafts(branch,actor) && !Boolean.TRUE.equals(r.getPublished())) {
       throw new NotFoundException("Rutina no encontrada");
     }
-    return view(gym,r);
+    return view(branch,r);
   }
-  private RoutineView view(UUID gym,Routine r) {return RoutineView.of(r,structure.list(gym,r.getId()));}
+  private RoutineView view(UUID branch,Routine r) {return RoutineView.of(r,structure.list(branch,r.getId()));}
   @Transactional
-  public RoutineView add(UUID gym,RoutineRequest d) {
-    Actor actor=auth.require(gym,"owner","trainer");
+  public RoutineView add(UUID branch,RoutineRequest d) {
+    Actor actor=auth.require(branch,"owner","trainer");
     if(d==null || d.name()==null || d.name().isBlank()) throw new DomainException("Nombre obligatorio");
-    Routine r=new Routine();r.setGymId(gym);apply(r,d);r.setCreatedBy(actor.id());validate(r);create(r,actor.id());
-    if(d.days()!=null)structure.replace(gym,r.getId(),d.days());
-    return view(gym,r);
+    Routine r=new Routine();r.setBranchId(branch);apply(r,d);r.setCreatedBy(actor.id());validate(r);create(r,actor.id());
+    if(d.days()!=null)structure.replace(branch,r.getId(),d.days());
+    return view(branch,r);
   }
   @Transactional
-  public RoutineView change(UUID gym,UUID id,RoutineRequest d) {
-    Actor actor=auth.require(gym,"owner","trainer");
+  public RoutineView change(UUID branch,UUID id,RoutineRequest d) {
+    Actor actor=auth.require(branch,"owner","trainer");
     if(d==null) throw new DomainException("Datos obligatorios");
-    Routine r=getOr404(id,gym);apply(r,d);validate(r);update(r,actor.id());
-    if(d.days()!=null)structure.replace(gym,id,d.days());
-    return view(gym,r);
+    Routine r=getOr404(id,branch);apply(r,d);validate(r);update(r,actor.id());
+    if(d.days()!=null)structure.replace(branch,id,d.days());
+    return view(branch,r);
   }
   private void apply(Routine r,RoutineRequest d) {
     if(d.name()!=null)r.setName(d.name());if(d.description()!=null)r.setDescription(d.description());
@@ -64,6 +64,6 @@ public class RoutineService extends BaseService<Routine> {
       throw new DomainException("Nivel inválido");
   }
   @Transactional
-  public void remove(UUID gym,UUID id) {Actor actor=auth.require(gym,"owner","trainer");
-    Routine target=getOr404(id,gym);structure.softDelete(gym,id);softDelete(target,actor.id());}
+  public void remove(UUID branch,UUID id) {Actor actor=auth.require(branch,"owner","trainer");
+    Routine target=getOr404(id,branch);structure.softDelete(branch,id);softDelete(target,actor.id());}
 }

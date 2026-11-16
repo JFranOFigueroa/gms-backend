@@ -5,13 +5,13 @@ import java.util.*;
 public interface IPaymentRepository {
   record Plan(UUID id,String period,int intervalCount,BigDecimal price,boolean active){}
   record Subscription(UUID id,UUID planId,LocalDate startedOn,LocalDate nextDue){}
-  Optional<Plan> plan(UUID gym,UUID planId);
-  Optional<Subscription> lockActiveSubscription(UUID gym,UUID member);
-  boolean activeMember(UUID gym,UUID member);
-  String gymTimezone(UUID gym);
-  UUID createSubscription(UUID gym,UUID member,UUID plan,LocalDate started,LocalDate due);
+  Optional<Plan> plan(UUID branch,UUID planId);
+  Optional<Subscription> lockActiveSubscription(UUID branch,UUID member);
+  boolean activeMember(UUID branch,UUID member);
+  String gymTimezone(UUID branch);
+  UUID createSubscription(UUID branch,UUID member,UUID plan,LocalDate started,LocalDate due);
   void updateSubscription(UUID id,LocalDate lastPayment,LocalDate nextDue);
-  UUID insertPayment(UUID gym,UUID member,UUID subscription,BigDecimal amount,String method,String periodicity,int periods,LocalDate periodStart,LocalDate nextDue,String notes,UUID actor);
-  Optional<Map<String,Object>> receipt(UUID gym,UUID paymentId);
-  List<Map<String,Object>> list(UUID gym,UUID memberId,int limit);
+  UUID insertPayment(UUID branch,UUID member,UUID subscription,BigDecimal amount,String method,String periodicity,int periods,LocalDate periodStart,LocalDate nextDue,String notes,UUID actor);
+  Optional<Map<String,Object>> receipt(UUID branch,UUID paymentId);
+  List<Map<String,Object>> list(UUID branch,UUID memberId,int limit);
 }

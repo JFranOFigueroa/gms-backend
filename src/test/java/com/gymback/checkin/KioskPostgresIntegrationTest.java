@@ -24,15 +24,14 @@ import org.springframework.security.oauth2.jwt.*;
 import org.springframework.security.oauth2.jose.jws.MacAlgorithm;
 import static org.junit.jupiter.api.Assertions.*;
 
-/** Real HTTP, SecurityFilterChain, Flyway and PostgreSQL. Never targets the normal database. */
+/** HTTP real, SecurityFilterChain y PostgreSQL. El esquema se prepara externamente con Liquibase. */
 @EnabledIfEnvironmentVariable(named="GMS_TEST_DB_URL", matches="jdbc:postgresql://127\\.0\\.0\\.1:55432/gms_checkin_audit")
 @SpringBootTest(webEnvironment=SpringBootTest.WebEnvironment.RANDOM_PORT, properties={
- "spring.config.import=", "spring.flyway.enabled=true", "app.user-api-enabled=true", "app.jwt.secret=audit-only-jwt-secret-at-least-32-bytes-001",
+ "spring.config.import=", "spring.flyway.enabled=false", "app.user-api-enabled=true", "app.jwt.secret=audit-only-jwt-secret-at-least-32-bytes-001",
  "app.checkin.member-qr-secret=audit-only-member-secret-at-least-32-bytes-002",
  "app.checkin.kiosk-csrf-secret=audit-only-csrf-secret-at-least-32-bytes-003",
  "app.checkin.cookie-secure=false", "app.frontend-origin=http://localhost:5173",
- "spring.jpa.properties.hibernate.default_schema=checkin_audit", "spring.flyway.default-schema=checkin_audit",
- "spring.flyway.schemas=checkin_audit", "spring.flyway.placeholders.schema_db=checkin_audit",
+ "spring.jpa.properties.hibernate.default_schema=checkin_audit",
  "spring.datasource.hikari.connection-init-sql=SET search_path TO checkin_audit, public"})
 class KioskPostgresIntegrationTest {
  @DynamicPropertySource static void database(DynamicPropertyRegistry r) {
@@ -49,16 +48,16 @@ class KioskPostgresIntegrationTest {
  @Autowired CheckinCrypto crypto;
  @Autowired DeviceAuthorizationService authorization;
  @Autowired JwtEncoder jwtEncoder;
- UUID gym; String slug, ownerToken,ownerRefresh;
+ UUID branch; String code, ownerToken,ownerRefresh;
  CookieManager cookies;
  HttpClient client;
  @BeforeEach void setup() throws Exception {
-  gym=UUID.randomUUID(); slug="audit-"+gym;
-  db.update("insert into gym(id,name,slug) values (?,?,?)",gym,"Audit Gym",slug);
-  db.update("insert into gym_modules(gym_id,module_key,enabled) values (?,'checkin',true) on conflict (gym_id,module_key) do update set enabled=true",gym);
+  branch=UUID.randomUUID(); code="audit-"+branch;
+  db.update("insert into branch(id,name,code) values (?,?,?)",branch,"Audit Branch",code);
+  db.update("insert into branch_modules(branch_id,module_key,enabled) values (?,'checkin',true) on conflict (branch_id,module_key) do update set enabled=true",branch);
   UUID owner=UUID.randomUUID();String email="audit-"+owner+"@example.test";
   db.update("insert into users(id,full_name,email,password_hash,status) values (?, ?, ?, ?, 'active')",owner,"Audit Owner",email,passwords.encode("audit-password"));
-  db.update("insert into gym_staff_roles(gym_id,user_id,role) values (?,?,'owner')",gym,owner);
+  db.update("insert into branch_staff_roles(branch_id,user_id,role) values (?,?,'owner')",branch,owner);
   cookies=new CookieManager(null,CookiePolicy.ACCEPT_ALL);client=HttpClient.newBuilder().cookieHandler(cookies).build();
   var login=call("POST","/auth/login",Map.of("email",email,"password","audit-password"),null,null,null);
   assertStatus(200,login);ownerToken=body(login).path("token").asText();ownerRefresh=body(login).path("refreshToken").asText();
@@ -80,47 +79,47 @@ class KioskPostgresIntegrationTest {
   assertTrue(Math.abs(Duration.between(OffsetDateTime.parse(a.path("occurredAt").asText()),OffsetDateTime.parse(b.path("occurredAt").asText())).toNanos())<1000);
  }
  JsonNode create() throws Exception {
-  var r=call("POST","/gyms/"+gym+"/checkin-devices",Map.of("deviceName","Audit reception"),ownerToken,null,null);
+  var r=call("POST","/branches/"+branch+"/checkin-devices",Map.of("deviceName","Audit reception"),ownerToken,null,null);
   assertStatus(201,r);return body(r);
  }
  String activate(JsonNode device) throws Exception {
-  var r=call("POST","/kiosk/activate",Map.of("slug",slug,"activationCode",device.path("activationCode").asText()),null,null,null);
+  var r=call("POST","/kiosk/activate",Map.of("code",code,"activationCode",device.path("activationCode").asText()),null,null,null);
   assertStatus(204,r);assertTrue(r.headers().firstValue("set-cookie").isPresent());
   var c=cookies.getCookieStore().getCookies().stream().filter(v->v.getName().equals("GMS_KIOSK")).findFirst().orElseThrow();
   assertTrue(c.isHttpOnly());assertEquals("/api/v1/kiosk",c.getPath());
   assertEquals(1,db.queryForObject("select count(*) from checkin_device_sessions where session_token_hash=? and revoked_at is null and expires_at>now()",Integer.class,crypto.hash(c.getValue())));
   var session=call("GET","/kiosk/session",null,null,null,null);
-  assertStatus(200,session);assertEquals(slug,body(session).path("slug").asText());
-  assertEquals(gym,authorization.authenticate(c.getValue()).gymId());
+  assertStatus(200,session);assertEquals(code,body(session).path("code").asText());
+  assertEquals(branch,authorization.authenticate(c.getValue()).branchId());
   return body(session).path("csrfToken").asText();
  }
  @Test void activationCookieSessionQrRoundTrip() throws Exception {
-  var config=call("GET","/public/gyms/"+slug+"/checkin-config",null,null,null,null);
+  var config=call("GET","/public/branches/"+code+"/checkin-config",null,null,null,null);
   assertStatus(200,config);assertTrue(body(config).path("checkinAvailable").asBoolean());
   String csrf=activate(create());
   assertStatus(200,call("GET","/kiosk/session",null,null,null,null));
   var qr=call("POST","/kiosk/qr/issue",null,null,csrf,null);assertStatus(200,qr);
   assertFalse(body(qr).path("qrValue").asText().isBlank());
-  assertEquals(1,db.queryForObject("select count(*) from checkin_device_sessions where gym_id=? and last_seen_at is not null",Integer.class,gym));
+  assertEquals(1,db.queryForObject("select count(*) from checkin_device_sessions where branch_id=? and last_seen_at is not null",Integer.class,branch));
  }
  record Member(UUID id,UUID user,String token){}
  String jwt(UUID user){
   return jwtEncoder.encode(JwtEncoderParameters.from(JwsHeader.with(MacAlgorithm.HS256).build(),
-   JwtClaimsSet.builder().subject(user.toString()).issuedAt(Instant.now()).expiresAt(Instant.now().plusSeconds(3600)).issuer("gym-back").build())).getTokenValue();
+   JwtClaimsSet.builder().subject(user.toString()).issuedAt(Instant.now()).expiresAt(Instant.now().plusSeconds(3600)).issuer("branch-back").build())).getTokenValue();
  }
  Member member(String state){
   UUID id=UUID.randomUUID(),user=UUID.randomUUID(),plan=UUID.randomUUID();
   db.update("insert into users(id,full_name,email,password_hash,status) values (?,'Audit Member',?,?,'active')",user,"audit-"+user+"@example.test",passwords.encode("audit-password"));
-  db.update("insert into gym_members(id,gym_id,user_id,member_code,is_active) values (?,?,?,?,?)",id,gym,user,"AUD-"+id,!state.equals("member_inactive"));
+  db.update("insert into branch_members(id,branch_id,user_id,member_code,is_active) values (?,?,?,?,?)",id,branch,user,"AUD-"+id,!state.equals("member_inactive"));
   if(state.equals("user_inactive"))db.update("update users set status='disabled' where id=?",user);
   if(!state.equals("no_active_subscription")){
-   db.update("insert into membership_plans(id,gym_id,name,billing_period,price) values (?,?,?,'monthly',100)",plan,gym,"Audit plan "+id);
-   db.update("insert into member_subscriptions(gym_id,member_id,plan_id,started_on,next_due_date,last_payment_date) values (?,?,?,current_date-30,?,?)",gym,id,plan,
+   db.update("insert into membership_plans(id,branch_id,name,billing_period,price) values (?,?,?,'monthly',100)",plan,branch,"Audit plan "+id);
+   db.update("insert into member_subscriptions(branch_id,member_id,plan_id,started_on,next_due_date,last_payment_date) values (?,?,?,current_date-30,?,?)",branch,id,plan,
     LocalDate.now().plusDays(state.equals("expired")?-1:30),state.equals("no_payment")?null:LocalDate.now().minusDays(10));
   }
   return new Member(id,user,jwt(user));
  }
- String memberPath(){return "/gyms/"+gym+"/checkins";}
+ String memberPath(){return "/branches/"+branch+"/checkins";}
  JsonNode issue(Member m,String kind) throws Exception {
   var r=call("POST",memberPath()+"/me/"+kind,null,m.token(),null,null);assertStatus(200,r);return body(r);
  }
@@ -128,13 +127,13 @@ class KioskPostgresIntegrationTest {
   var r=call("POST","/kiosk/checkins/"+route,Map.of(field,value),null,csrf,key);assertStatus(200,r);
   var d=body(r);assertFalse(d.has("memberId"));assertFalse(d.has("fullName"));assertFalse(d.has("email"));return d;
  }
- @Test void gymQrAccessAndDuplicateAndHistoryStats() throws Exception {
+ @Test void branchQrAccessAndDuplicateAndHistoryStats() throws Exception {
   String csrf=activate(create());Member m=member("active");
   var qr=call("POST","/kiosk/qr/issue",null,null,csrf,null);assertStatus(200,qr);
   var payload=Map.of("kioskToken",body(qr).path("qrValue").asText());String key=UUID.randomUUID().toString();
-  var granted=call("POST",memberPath()+"/scan-gym-qr",payload,m.token(),null,key);assertStatus(200,granted);assertTrue(body(granted).path("allowed").asBoolean());
-  sameDecision(body(granted),body(call("POST",memberPath()+"/scan-gym-qr",payload,m.token(),null,key)));
-  var duplicate=call("POST",memberPath()+"/scan-gym-qr",payload,m.token(),null,UUID.randomUUID().toString());assertStatus(200,duplicate);assertEquals("duplicate",body(duplicate).path("reasonCode").asText());
+  var granted=call("POST",memberPath()+"/scan-branch-qr",payload,m.token(),null,key);assertStatus(200,granted);assertTrue(body(granted).path("allowed").asBoolean());
+  sameDecision(body(granted),body(call("POST",memberPath()+"/scan-branch-qr",payload,m.token(),null,key)));
+  var duplicate=call("POST",memberPath()+"/scan-branch-qr",payload,m.token(),null,UUID.randomUUID().toString());assertStatus(200,duplicate);assertEquals("duplicate",body(duplicate).path("reasonCode").asText());
   var mine=call("GET",memberPath()+"/me",null,m.token(),null,null);assertStatus(200,mine);assertEquals(2,body(mine).path("items").size());
   var audit=call("GET",memberPath(),null,ownerToken,null,null);assertStatus(200,audit);assertEquals("Audit Member",body(audit).get(0).path("member_name").asText());
   var stats=call("GET",memberPath()+"/stats",null,ownerToken,null,null);assertStatus(200,stats);assertEquals(1,body(stats).path("granted").asInt());assertEquals(1,body(stats).path("denied").asInt());
@@ -143,7 +142,7 @@ class KioskPostgresIntegrationTest {
   String csrf=activate(create());Member m=member("active");var issued=issue(m,"qr");
   assertEquals(30,Duration.between(OffsetDateTime.parse(issued.path("serverTime").asText()),OffsetDateTime.parse(issued.path("expiresAt").asText())).toSeconds());
   assertTrue(decision("scan-member-qr","memberQr",issued.path("qrValue").asText(),csrf,UUID.randomUUID().toString()).path("allowed").asBoolean());
-  String old=crypto.memberQr(gym,m.id(),OffsetDateTime.now().minusSeconds(31));
+  String old=crypto.memberQr(branch,m.id(),OffsetDateTime.now().minusSeconds(31));
   assertEquals("token_expired",decision("scan-member-qr","memberQr",old,csrf,UUID.randomUUID().toString()).path("reasonCode").asText());
   assertEquals("invalid_token",decision("scan-member-qr","memberQr",issued.path("qrValue").asText()+"x",csrf,UUID.randomUUID().toString()).path("reasonCode").asText());
   assertEquals("wrong_gym",decision("scan-member-qr","memberQr",crypto.memberQr(UUID.randomUUID(),m.id(),OffsetDateTime.now()),csrf,UUID.randomUUID().toString()).path("reasonCode").asText());
@@ -163,23 +162,23 @@ class KioskPostgresIntegrationTest {
  }
  @Test void expiredAndForeignManualCodesCannotGrantAccess() throws Exception {
   String csrf=activate(create());Member m=member("active");String expired=issue(m,"code").path("accessCode").asText();
-  db.update("update checkin_access_codes set issued_at=now()-interval '121 seconds',expires_at=now()-interval '1 second' where gym_id=?",gym);
+  db.update("update checkin_access_codes set issued_at=now()-interval '121 seconds',expires_at=now()-interval '1 second' where branch_id=?",branch);
   assertEquals("invalid_code",decision("validate-code","accessCode",expired,csrf,UUID.randomUUID().toString()).path("reasonCode").asText());
-  String valid=issue(m,"code").path("accessCode").asText();UUID original=gym;
-  gym=UUID.randomUUID();slug="audit-"+gym;db.update("insert into gym(id,name,slug) values (?,'Other Audit Gym',?)",gym,slug);
-  db.update("update gym_modules set enabled=true where gym_id=? and module_key='checkin'",gym);
-  db.update("insert into gym_staff_roles(gym_id,user_id,role) select ?,user_id,'owner' from gym_staff_roles where gym_id=?",gym,original);
+  String valid=issue(m,"code").path("accessCode").asText();UUID original=branch;
+  branch=UUID.randomUUID();code="audit-"+branch;db.update("insert into branch(id,name,code) values (?,'Other Audit Branch',?)",branch,code);
+  db.update("update branch_modules set enabled=true where branch_id=? and module_key='checkin'",branch);
+  db.update("insert into branch_staff_roles(branch_id,user_id,role) select ?,user_id,'owner' from branch_staff_roles where branch_id=?",branch,original);
   csrf=activate(create());assertEquals("invalid_code",decision("validate-code","accessCode",valid,csrf,UUID.randomUUID().toString()).path("reasonCode").asText());
  }
  @ParameterizedTest @CsvSource({"active,granted", "no_payment,no_payment", "expired,expired", "member_inactive,member_inactive", "no_active_subscription,no_active_subscription"})
  void businessPolicyIsAppliedByBackend(String state,String reason) throws Exception {
   String csrf=activate(create());Member m=member(state.equals("member_inactive")?"active":state);String code=issue(m,"code").path("accessCode").asText();
-  if(state.equals("member_inactive"))db.update("update gym_members set is_active=false where id=?",m.id());
+  if(state.equals("member_inactive"))db.update("update branch_members set is_active=false where id=?",m.id());
   var result=decision("validate-code","accessCode",code,csrf,UUID.randomUUID().toString());
   assertEquals(reason,result.path("reasonCode").asText());assertEquals(state.equals("active"),result.path("allowed").asBoolean());
  }
  @Test void deviceReissueDisableAndSessionExpiryRevokeAccess() throws Exception {
-  JsonNode device=create();String csrf=activate(device),path="/gyms/"+gym+"/checkin-devices/"+device.path("deviceId").asText();
+  JsonNode device=create();String csrf=activate(device),path="/branches/"+branch+"/checkin-devices/"+device.path("deviceId").asText();
   var newCode=call("POST",path+"/reissue-activation",null,ownerToken,null,null);assertStatus(200,newCode);
   assertStatus(401,call("GET","/kiosk/session",null,null,null,null));
   csrf=activate(body(newCode));
@@ -188,7 +187,7 @@ class KioskPostgresIntegrationTest {
   assertStatus(200,call("PATCH",path,Map.of("active",true),ownerToken,null,null));
   csrf=activate(body(call("POST",path+"/reissue-activation",null,ownerToken,null,null)));
   String expiredSecret=crypto.newToken();
-  db.update("insert into checkin_device_sessions(gym_id,device_id,session_token_hash,created_at,expires_at) values (?,?,?,now()-interval '13 hours',now()-interval '1 second')",gym,UUID.fromString(device.path("deviceId").asText()),crypto.hash(expiredSecret));
+  db.update("insert into checkin_device_sessions(branch_id,device_id,session_token_hash,created_at,expires_at) values (?,?,?,now()-interval '13 hours',now()-interval '1 second')",branch,UUID.fromString(device.path("deviceId").asText()),crypto.hash(expiredSecret));
   cookies.getCookieStore().removeAll();HttpCookie expiredCookie=new HttpCookie("GMS_KIOSK",expiredSecret);expiredCookie.setVersion(0);expiredCookie.setPath("/api/v1/kiosk");cookies.getCookieStore().add(URI.create("http://localhost:"+port),expiredCookie);
   assertStatus(401,call("GET","/kiosk/session",null,null,null,null));
  }
@@ -204,7 +203,7 @@ class KioskPostgresIntegrationTest {
   Member m=member("active");assertStatus(403,call("GET",memberPath()+"/stats",null,m.token(),null,null));
   assertStatus(401,call("GET",memberPath(),null,null,null,null));
   assertStatus(401,call("GET","/auth/me",null,"invalid",null,null));
-  assertStatus(403,call("POST","/kiosk/activate",Map.of("slug",slug,"activationCode",device.path("activationCode").asText()),null,null,null));
+  assertStatus(403,call("POST","/kiosk/activate",Map.of("code",code,"activationCode",device.path("activationCode").asText()),null,null,null));
   assertStatus(204,call("POST","/kiosk/logout",null,null,csrf,null));
   assertStatus(401,call("GET","/kiosk/session",null,null,null,null));
  }
@@ -215,32 +214,32 @@ class KioskPostgresIntegrationTest {
    Callable<JsonNode> task=()->decision("validate-code","accessCode",value,csrf,key);
    var a=workers.submit(task);var b=workers.submit(task);
    assertTrue(a.get(15,TimeUnit.SECONDS).path("allowed").asBoolean());sameDecision(a.get(),b.get());
-   assertEquals(1,db.queryForObject("select count(*) from checkin_events where gym_id=?",Integer.class,gym));
+   assertEquals(1,db.queryForObject("select count(*) from checkin_events where branch_id=?",Integer.class,branch));
   }finally{workers.shutdownNow();}
  }
  @Test void legacyAdministrativeCheckinAndRoleIsolation() throws Exception {
   Member m=member("active");
   var r=call("POST",memberPath(),Map.of("memberId",m.id()),ownerToken,null,null);assertStatus(201,r);assertTrue(body(r).path("allowed").asBoolean());
   assertStatus(403,call("POST",memberPath(),Map.of("memberId",m.id()),m.token(),null,null));
-  assertStatus(403,call("GET","/gyms/"+UUID.randomUUID()+"/checkins",null,ownerToken,null,null));
+  assertStatus(403,call("GET","/branches/"+UUID.randomUUID()+"/checkins",null,ownerToken,null,null));
  }
- @Test void gymQrExpiryAndWrongGymAreDenied() throws Exception {
+ @Test void branchQrExpiryAndWrongGymAreDenied() throws Exception {
   String csrf=activate(create());Member m=member("active");
   var issued=call("POST","/kiosk/qr/issue",null,null,csrf,null);assertStatus(200,issued);
   String raw=body(issued).path("qrValue").asText();
-  db.update("update checkin_qr_tokens set issued_at=now()-interval '11 seconds',expires_at=now()-interval '1 second' where gym_id=?",gym);
-  var expired=call("POST",memberPath()+"/scan-gym-qr",Map.of("kioskToken",raw),m.token(),null,UUID.randomUUID().toString());assertStatus(200,expired);assertEquals("token_expired",body(expired).path("reasonCode").asText());
-  UUID other=UUID.randomUUID();db.update("insert into gym(id,name,slug) values (?,'Foreign Audit Gym',?)",other,"audit-"+other);
-  db.update("update gym_modules set enabled=true where gym_id=?",other);
-  db.update("insert into gym_members(gym_id,user_id,member_code) values (?,?,'AUD-OTHER')",other,m.user());
-  var wrong=call("POST","/gyms/"+other+"/checkins/scan-gym-qr",Map.of("kioskToken",raw),m.token(),null,UUID.randomUUID().toString());assertStatus(200,wrong);assertEquals("wrong_gym",body(wrong).path("reasonCode").asText());
+  db.update("update checkin_qr_tokens set issued_at=now()-interval '11 seconds',expires_at=now()-interval '1 second' where branch_id=?",branch);
+  var expired=call("POST",memberPath()+"/scan-branch-qr",Map.of("kioskToken",raw),m.token(),null,UUID.randomUUID().toString());assertStatus(200,expired);assertEquals("token_expired",body(expired).path("reasonCode").asText());
+  UUID other=UUID.randomUUID();db.update("insert into branch(id,name,code) values (?,'Foreign Audit Branch',?)",other,"audit-"+other);
+  db.update("update branch_modules set enabled=true where branch_id=?",other);
+  db.update("insert into branch_members(branch_id,user_id,member_code) values (?,?,'AUD-OTHER')",other,m.user());
+  var wrong=call("POST","/branches/"+other+"/checkins/scan-branch-qr",Map.of("kioskToken",raw),m.token(),null,UUID.randomUUID().toString());assertStatus(200,wrong);assertEquals("wrong_gym",body(wrong).path("reasonCode").asText());
  }
  @Test void suspendedGymAndDisabledModuleAndInvalidCookieAreRejected() throws Exception {
-  activate(create());db.update("update gym_modules set enabled=false where gym_id=? and module_key='checkin'",gym);
+  activate(create());db.update("update branch_modules set enabled=false where branch_id=? and module_key='checkin'",branch);
   assertStatus(401,call("GET","/kiosk/session",null,null,null,null));
-  db.update("update gym_modules set enabled=true where gym_id=? and module_key='checkin'",gym);
-  db.update("update gym set status='suspended' where id=?",gym);assertStatus(401,call("GET","/kiosk/session",null,null,null,null));
-  db.update("update gym set status='active' where id=?",gym);
+  db.update("update branch_modules set enabled=true where branch_id=? and module_key='checkin'",branch);
+  db.update("update branch set status='suspended' where id=?",branch);assertStatus(401,call("GET","/kiosk/session",null,null,null,null));
+  db.update("update branch set status='active' where id=?",branch);
   cookies.getCookieStore().removeAll();HttpCookie invalid=new HttpCookie("GMS_KIOSK","invalid-token");invalid.setVersion(0);invalid.setPath("/api/v1/kiosk");cookies.getCookieStore().add(URI.create("http://localhost:"+port),invalid);
   assertStatus(401,call("GET","/kiosk/session",null,null,null,null));
  }
@@ -253,21 +252,19 @@ class KioskPostgresIntegrationTest {
   var refreshed=call("POST","/auth/refresh",Map.of("refreshToken",ownerRefresh),null,null,null);assertStatus(200,refreshed);
   assertStatus(401,call("POST","/auth/refresh",Map.of("refreshToken",ownerRefresh),null,null,null));
   ownerToken=body(refreshed).path("token").asText();assertStatus(200,call("GET","/auth/me",null,ownerToken,null,null));
-  db.update("update gym_modules set enabled=true where gym_id=?",gym);
-  String root="/gyms/"+gym;
-  for(String route:List.of("/staff","/members","/plans","/payments","/products","/sales","/routines","/classes","/class-templates","/dashboard/summary","/landing-blocks","/landing/link","/media-assets","/settings","/modules"))assertStatus(200,call("GET",root+route,null,ownerToken,null,null));
+  db.update("update branch_modules set enabled=true where branch_id=?",branch);
+  String root="/branches/"+branch;
+  for(String route:List.of("/staff","/members","/plans","/payments","/products","/sales","/routines","/classes","/class-templates","/dashboard/summary","/settings","/modules"))assertStatus(200,call("GET",root+route,null,ownerToken,null,null));
   Member m=member("active");assertStatus(200,call("GET",root+"/reservations/me",null,m.token(),null,null));
   assertStatus(200,call("GET",root+"/members/me",null,m.token(),null,null));
   assertStatus(404,call("GET","/public/media/"+UUID.randomUUID(),null,null,null,null));
-  assertStatus(404,call("GET",root+"/media-assets/"+UUID.randomUUID()+"/content",null,ownerToken,null,null));
-  db.update("update gym_settings set landing_published=true where gym_id=?",gym);
-  assertStatus(200,call("GET","/public/gyms/"+slug+"/landing",null,null,null,null));
+  assertStatus(200,call("GET","/public/site",null,null,null,null));
  }
  @Test @EnabledIfEnvironmentVariable(named="GMS_TEST_BROWSER_FRONTEND",matches=".+")
  void chromeRunsActualFrontendActivationAndReload() throws Exception {
   var builder=new ProcessBuilder("node","tests/checkin-browser.mjs").directory(new java.io.File(System.getenv("GMS_TEST_BROWSER_FRONTEND"))).redirectErrorStream(true);
   builder.environment().put("GMS_TEST_API_URL","http://localhost:"+port+"/api/v1");
-  builder.environment().put("GMS_TEST_OWNER_TOKEN",ownerToken);builder.environment().put("GMS_TEST_GYM",gym.toString());builder.environment().put("GMS_TEST_SLUG",slug);
+  builder.environment().put("GMS_TEST_OWNER_TOKEN",ownerToken);builder.environment().put("GMS_TEST_BRANCH",branch.toString());builder.environment().put("GMS_TEST_CODE",code);
   var process=builder.start();assertTrue(process.waitFor(55,TimeUnit.SECONDS),"Chrome test timed out");
   String output=new String(process.getInputStream().readAllBytes(),java.nio.charset.StandardCharsets.UTF_8);
   // Runner outputs only sanitized status and no credentials or full DOM.
@@ -275,23 +272,23 @@ class KioskPostgresIntegrationTest {
   System.out.println(output);
  }
  @Test void gymCrudAndAccountRegistrationKeepTheirPermissions() throws Exception {
-  String root="/gyms/"+gym;UUID owner=db.queryForObject("select user_id from gym_staff_roles where gym_id=? and role='owner'",UUID.class,gym);
-  assertStatus(403,call("GET","/gyms",null,ownerToken,null,null));
+  String root="/branches/"+branch;UUID owner=db.queryForObject("select user_id from branch_staff_roles where branch_id=? and role='owner'",UUID.class,branch);
+  assertStatus(403,call("GET","/branches",null,ownerToken,null,null));
   var staff=call("POST",root+"/staff/register",Map.of("role","trainer","user",Map.of("fullName","Audit Trainer","email","audit-"+UUID.randomUUID()+"@example.test","password","audit-password")),ownerToken,null,null);
   assertStatus(201,staff);String trainer=jwt(UUID.fromString(body(staff).path("user").path("id").asText()));
   assertStatus(200,call("GET",memberPath()+"/stats",null,trainer,null,null));
   assertStatus(403,call("POST",root+"/checkin-devices",Map.of("deviceName","Forbidden trainer kiosk"),trainer,null,null));
   var member=call("POST",root+"/members/register",Map.of("user",Map.of("fullName","Registered Audit Member","email","audit-"+UUID.randomUUID()+"@example.test","password","audit-password"),"member",Map.of("code","AUD-"+UUID.randomUUID(),"active",true)),ownerToken,null,null);assertStatus(201,member);
   db.update("insert into platform_admins(user_id) values (?)",owner);
-  assertStatus(200,call("GET","/gyms",null,ownerToken,null,null));
-  var created=call("POST","/gyms",Map.of("name","Audit CRUD "+UUID.randomUUID()),ownerToken,null,null);assertStatus(201,created);String path="/gyms/"+body(created).path("id").asText();
+  assertStatus(200,call("GET","/branches",null,ownerToken,null,null));
+  var created=call("POST","/branches",Map.of("name","Audit CRUD "+UUID.randomUUID()),ownerToken,null,null);assertStatus(201,created);String path="/branches/"+body(created).path("id").asText();
   assertStatus(200,call("GET",path,null,ownerToken,null,null));
   assertStatus(200,call("PATCH",path,Map.of("name","Audit renamed"),ownerToken,null,null));
   assertStatus(204,call("DELETE",path,null,ownerToken,null,null));
   assertStatus(404,call("GET",path,null,ownerToken,null,null));
  }
  @Test void paymentsPosRoutinesAndBookingKeepTheirWriteFlows() throws Exception {
-  db.update("update gym_modules set enabled=true where gym_id=?",gym);String root="/gyms/"+gym;
+  db.update("update branch_modules set enabled=true where branch_id=?",branch);String root="/branches/"+branch;
   Member m=member("no_active_subscription");
   var plan=call("POST",root+"/plans",Map.of("name","Audit monthly","billingPeriod","monthly","intervalCount",1,"price",100,"isActive",true),ownerToken,null,null);assertStatus(201,plan);String planId=body(plan).path("id").asText();
   var payment=call("POST",root+"/payments",Map.of("memberId",m.id(),"planId",planId,"method","cash","periods",1),ownerToken,null,null);assertStatus(201,payment);assertEquals(100,body(payment).path("amount").asInt());

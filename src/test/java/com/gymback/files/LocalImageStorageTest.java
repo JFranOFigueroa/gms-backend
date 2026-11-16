@@ -11,10 +11,10 @@ class LocalImageStorageTest {
  @TempDir Path temporary;
  @Test void savesPngUnderTenantDirectoryAndPreventsTraversal() throws Exception {
    var storage=new LocalImageStorage(temporary.toString());
-   var gym=UUID.randomUUID();
+   var branch=UUID.randomUUID();
    byte[] png=new byte[]{(byte)0x89,'P','N','G',13,10,26,10,0,0,0,0,0,0,0,0};
-   var saved=storage.save(gym,new MockMultipartFile("file","../escape.png","image/png",png));
-   assertTrue(saved.key().startsWith(gym+"/"));
+   var saved=storage.save(branch.toString(),new MockMultipartFile("file","../escape.png","image/png",png));
+   assertTrue(saved.key().startsWith(branch+"/"));
    assertTrue(Files.isRegularFile(temporary.resolve(saved.key())));
    assertEquals("image/png",saved.mime());
    storage.discard(saved.key());
@@ -24,6 +24,6 @@ class LocalImageStorageTest {
  @Test void rejectsUnknownBinary(){
    var storage=new LocalImageStorage(temporary.toString());
    byte[] content="not an image at all".getBytes(java.nio.charset.StandardCharsets.UTF_8);
-   assertThrows(DomainException.class,()->storage.save(UUID.randomUUID(),new MockMultipartFile("file","x.bin","application/octet-stream",content)));
+   assertThrows(DomainException.class,()->storage.save("test",new MockMultipartFile("file","x.bin","application/octet-stream",content)));
  }
 }

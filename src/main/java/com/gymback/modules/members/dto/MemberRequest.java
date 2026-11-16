@@ -7,5 +7,5 @@ import java.util.UUID;
  * No se reciben name,email,phone,password ni se crean cuentas invitadas.
  */
 public record MemberRequest(UUID userId, String code, LocalDate birthDate, String address,
-  String emergencyContactName, String emergencyContactPhone, UUID photoAssetId,
+  String emergencyContactName, String emergencyContactPhone,
   String notes, LocalDate startDate, Boolean active) {}

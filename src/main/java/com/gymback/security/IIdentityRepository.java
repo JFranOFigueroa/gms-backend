@@ -1,5 +1,5 @@
 package com.gymback.security;
-import com.gymback.security.dto.GymAccess;
+import com.gymback.security.dto.BranchAccess;
 import java.util.*;
 
 public interface IIdentityRepository {
@@ -8,16 +8,16 @@ public interface IIdentityRepository {
   boolean isPlatformAdmin(UUID userId);
   /** Inserta el rol global técnico al crear la primera cuenta administradora. */
   void insertPlatformAdmin(UUID userId);
-  boolean isGymActive(UUID gymId);
-  boolean isModuleEnabled(UUID gymId,String module);
-  Set<String> activeRoles(UUID userId,UUID gymId);
-  /** Gimnasios visibles con roles efectivos para el selector de la pantalla de login. */
-  List<GymAccess> gymsForUser(UUID userId, boolean platformAdmin);
+  boolean isBranchActive(UUID branchId);
+  boolean isModuleEnabled(UUID branchId,String module);
+  Set<String> activeRoles(UUID userId,UUID branchId);
+  /** Sucursales visibles con roles efectivos para el selector de la pantalla de login. */
+  List<BranchAccess> branchesForUser(UUID userId, boolean platformAdmin);
   /** Solo enlaza usuarios EXISTENTES; el alta global se realiza por SQL fuera de la API. */
-  void setDefaultGymIfMissing(UUID userId,UUID gymId);
-  void assignStaff(UUID userId,UUID gymId,String role,UUID assignedBy);
-  void deactivateStaff(UUID userId,UUID gymId);
-  Set<String> activeStaffRoles(UUID userId,UUID gymId);
-  boolean staffExists(UUID userId,UUID gymId);
-  record UserCredentials(UUID id,String name,String email,String passwordHash,String status,UUID defaultGymId) {}
+  void setDefaultBranchIfMissing(UUID userId,UUID branchId);
+  void assignStaff(UUID userId,UUID branchId,String role,UUID assignedBy);
+  void deactivateStaff(UUID userId,UUID branchId);
+  Set<String> activeStaffRoles(UUID userId,UUID branchId);
+  boolean staffExists(UUID userId,UUID branchId);
+  record UserCredentials(UUID id,String name,String email,String passwordHash,String status,UUID defaultBranchId) {}
 }

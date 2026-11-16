@@ -29,16 +29,16 @@ public class DeviceAuthorizationService {
   CheckinDeviceSession session=sessions.byHash(crypto.hash(token)).orElseThrow(()->new AccessDeniedException("Sesión de dispositivo inválida"));
   OffsetDateTime now=OffsetDateTime.now();
   if(session.revokedAt!=null||!session.expiresAt.isAfter(now))throw new AccessDeniedException("Sesión de dispositivo expirada");
-  CheckinDevice device=devices.findInGym(session.gymId,session.deviceId).orElseThrow(()->new AccessDeniedException("Dispositivo no disponible"));
-  if(!Boolean.TRUE.equals(device.active)||device.activatedAt==null||!identity.isGymActive(session.gymId)
-      ||!identity.isModuleEnabled(session.gymId,"checkin"))throw new AccessDeniedException("Dispositivo no disponible");
+  CheckinDevice device=devices.findInGym(session.branchId,session.deviceId).orElseThrow(()->new AccessDeniedException("Dispositivo no disponible"));
+  if(!Boolean.TRUE.equals(device.active)||device.activatedAt==null||!identity.isBranchActive(session.branchId)
+      ||!identity.isModuleEnabled(session.branchId,"checkin"))throw new AccessDeniedException("Dispositivo no disponible");
   if(session.lastSeenAt==null||session.lastSeenAt.isBefore(now.minusMinutes(5)))sessions.touch(session.id,device.id,now);
-  return new KioskPrincipal(session.gymId,device.id,session.id,device.deviceName,session.expiresAt,token);
+  return new KioskPrincipal(session.branchId,device.id,session.id,device.deviceName,session.expiresAt,token);
  }
  public KioskPrincipal current(){
   Object principal=SecurityContextHolder.getContext().getAuthentication()==null?null:SecurityContextHolder.getContext().getAuthentication().getPrincipal();
   if(!(principal instanceof KioskPrincipal kiosk))throw new AccessDeniedException("Sesión de dispositivo requerida");
-  // Revalidación en cada operación, también cuando se desactiva un gimnasio o dispositivo.
+  // Revalidación en cada operación, también cuando se desactiva una sucursal o dispositivo.
   return authenticate(kiosk.sessionSecret());
  }
  public void requireOrigin(HttpServletRequest request){

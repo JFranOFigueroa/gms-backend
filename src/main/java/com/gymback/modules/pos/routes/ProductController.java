@@ -6,13 +6,13 @@ import org.springframework.web.bind.annotation.*;
 import org.springframework.http.*;
 import java.util.*;
 @RestController
-@RequestMapping("/api/v1/gyms/{gymId}/products")
+@RequestMapping("/api/v1/branches/{branchId}/products")
 public class ProductController {
   private final ProductService service;
   public ProductController(ProductService service){this.service=service;}
-  @GetMapping public List<Product> list(@PathVariable UUID gymId,@RequestParam(defaultValue="0") int offset,@RequestParam(defaultValue="50") int limit) {return service.all(gymId,offset,limit);}
-  @GetMapping("/{id}")public Product get(@PathVariable UUID gymId,@PathVariable UUID id){return service.one(gymId,id);}
-  @PostMapping public ResponseEntity<Product> create(@PathVariable UUID gymId,@RequestBody ProductRequest request){return ResponseEntity.status(201).body(service.add(gymId,request));}
-  @PatchMapping("/{id}")public Product patch(@PathVariable UUID gymId,@PathVariable UUID id,@RequestBody ProductRequest request){return service.change(gymId,id,request);}
-  @DeleteMapping("/{id}")@ResponseStatus(HttpStatus.NO_CONTENT)public void delete(@PathVariable UUID gymId,@PathVariable UUID id){service.remove(gymId,id);}
+  @GetMapping public List<Product> list(@PathVariable UUID branchId,@RequestParam(defaultValue="0") int offset,@RequestParam(defaultValue="50") int limit) {return service.all(branchId,offset,limit);}
+  @GetMapping("/{id}")public Product get(@PathVariable UUID branchId,@PathVariable UUID id){return service.one(branchId,id);}
+  @PostMapping public ResponseEntity<Product> create(@PathVariable UUID branchId,@RequestBody ProductRequest request){return ResponseEntity.status(201).body(service.add(branchId,request));}
+  @PatchMapping("/{id}")public Product patch(@PathVariable UUID branchId,@PathVariable UUID id,@RequestBody ProductRequest request){return service.change(branchId,id,request);}
+  @DeleteMapping("/{id}")@ResponseStatus(HttpStatus.NO_CONTENT)public void delete(@PathVariable UUID branchId,@PathVariable UUID id){service.remove(branchId,id);}
 }

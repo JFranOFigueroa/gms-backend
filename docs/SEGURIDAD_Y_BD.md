@@ -1,20 +1,70 @@
-> **Decisión vigente:** la página es automática por gimnasio y se consulta por slug. No existe flujo manual de publicar/despublicar. Véase `docs/DECISION_LANDING_ENLACE_DIRECTO.md` para los contratos actuales; las referencias históricas a snapshots/publicación describen la integración anterior.
-
 # Seguridad y base de datos
 
-- **Esquema**: `schema_db` (alias `SCHEMA_DB`) configura Hibernate `default_schema`, el placeholder `${schema_db}` de Liquibase/Flyway y SQL JDBC con `search_path`. Solo identificador validado `[a-z_][a-z0-9_]{0,62}`. No aceptar schema DB desde rutas.
-- **Modelo de identidad**: `users` es GLOBAL, `platform_admins` es rol de administrador de plataforma, `gym_staff_roles` contiene owner/trainer por gimnasio, `gym_members` determina membresía/rol member por gym. Una persona puede ser trainer en A, member en B y owner en C.
-- **Alta manual**: cuentas globales creadas por SQL fuera de esta API, **en estado active y con hash BCrypt**. `POST /members` y `POST /staff` solo referencian ese UUID; se rechazará usuario ausente o inactivo. No se crean usuarios `invited` desde esos módulos. Recuperación/activación quedan pendientes.
-- **Login seguro**: la selección de gym se ofrece **tras validar credenciales**; nunca exponer una consulta anónima de gimnasios por email. JWT HS256 (`JWT_SECRET` con al menos 32 bytes aleatorios), TTL 1 hora. `/auth/me` reconstruye la misma lista de gimnasios/roles y valida cuenta activa. Al iniciar sesión, el usuario elige gym en frontend; en cada HTTP endpoint servidor autoriza el `gymId` recibido.
-- **Roles y autorización**: el `admin` global ve gimnasios activos y acceso técnico; roles owner/trainer/member se obtienen **de DB por gym**. Roles activos múltiples son válidos. La matriz fina de permisos (qué hace cada rol en cada módulo) **está pendiente de confirmación**; restricciones presentes en services son provisionales y deben probarse antes de publicación.
-- **Aislamiento**: BaseCRUD verifica gymId, cada SQL JDBC tenant exige gym_id; no usar un `SELECT` por UUID global sin comprobar tenant en un caso de uso de gym. Agregar pruebas multi-tenant con PostgreSQL antes de producción.
-- **Privacidad**: no emitir `password_hash`; cambiar datos personales globales no es una modificación permitida del expediente de gym. `GET /members` requiere owner/trainer bajo política provisional.
-- **Transacciones**: `@Transactional` en services; venta usa `FOR UPDATE` para stock; reservas lock de clase; dinero con `BigDecimal`. Ventas incluyen ítems persistidos y precios server-side, no se confía en carrito.
-- **Pagos**: registros manuales administrativos, sin pasarela, sin tokens de tarjeta, sin refund ni endpoint de anulación, por decisión explícita.
-- **Migraciones**: el baseline externo de Liquibase es `src/main/resources/db/schema/schema.sql` (consolidado V1–V6, formatted SQL) y el changelog raíz es `src/main/resources/db/changelog-master.yaml`. Las migraciones V1–V6 de `db/migration/` se conservan como referencia y para el test Flyway opcional; no editarlas después de aplicadas. Tras el primer despliegue, `schema.sql` es inmutable: los cambios nuevos van en changesets adicionales. Probar el baseline en DB temporal antes de despliegue. Requiere privilegios para extensiones `citext` y `pgcrypto`, o aprovisionarlas previamente.
-- **Auditoría**: stamps solo si la tabla tiene columnas; `audit_events` transversal aún sin lógica completa. No declarar implementación de histórico automático.
-- **CORS**: configurar `FRONTEND_ORIGIN` explícito. Usar HTTPS fuera del entorno local. `.env` no se versiona con credenciales reales. `BOOTSTRAP_ADMIN_*` es opción inicial, dejar vacío si todos se insertan por SQL.
+## Esquema
 
-## Aplicación de la especificación nueva (03/11/2026)
+- `schema_db` (alias `SCHEMA_DB`) configura el esquema PostgreSQL.
+- Solo se acepta un identificador validado `[a-z_][a-z0-9_]{0,62}`.
+- El esquema no se acepta desde rutas HTTP.
 
-Solo `GET /api/v1/public/gyms/*/landing` admite anónimo. El contenido público sale de los `landing_blocks` habilitados del gimnasio activo y muestra la configuración guardada; no se filtran usuarios, pagos o medios privados. `USER_API_ENABLED=false` conserva alta de cuentas por SQL; cambiar a true exige aprobación y pruebas de seguridad/multi-tenant. La búsqueda por email de owner no enumera cuentas de otros gyms: se limita a usuarios ya vinculados a ese gimnasio, mientras la búsqueda global queda reservada a admin. Se conserva V3 como migración histórica compatible con Flyway, pero la lectura pública no depende de la tabla de snapshots; no existe borrado lógico ni se han cambiado V1/V2.
+## Identidad
+
+- `users` es global.
+- `platform_admins` identifica administradores globales.
+- `branch_staff_roles` contiene `owner`/`trainer` por sucursal.
+- `branch_members` determina la membresía por sucursal.
+- Una persona puede tener roles distintos en sucursales distintas.
+
+## Autenticación
+
+- JWT HS256 con `JWT_SECRET` de al menos 32 bytes.
+- Access token de vida corta; refresh token rotativo.
+- `/auth/me` reconstruye la misma sesión que `/auth/login`.
+- La selección de sucursal ocurre después de validar credenciales.
+- Un `platformAdmin` puede autenticarse sin sucursales.
+- Cada endpoint operativo valida el `branchId` y el rol en servidor.
+
+## Autorización
+
+- `platformAdmin`: acceso global.
+- `owner`: administra su sucursal y puede editar el sitio.
+- `trainer`: acceso operativo limitado.
+- `member`: consulta sus datos, rutinas y check-in.
+- La matriz fina de permisos sigue pendiente de aprobación.
+
+## Aislamiento
+
+- `BaseCRUD` exige `branchId` en entidades tenant.
+- Las consultas operativas filtran por `branch_id`.
+- No se aceptan IDs de otra sucursal sin validación.
+- Las pruebas de integración cubren check-in y aislamiento básico.
+
+## Privacidad
+
+- No se emite `password_hash`.
+- Las fotos de miembros se sirven con Bearer y `Cache-Control: no-store`.
+- `site_media_assets` solo contiene imágenes públicas del sitio.
+- La landing pública no expone usuarios, pagos, check-ins ni fotos privadas.
+
+## Archivos
+
+- `LocalImageStorage` valida cabeceras PNG/JPG/WebP, tamaño máximo 8 MB y rutas.
+- El scope `site` se usa para multimedia del sitio.
+- El scope `member-photos/{branchId}` se usa para fotos privadas.
+- Los archivos se guardan bajo `GMS_FILES_ROOT`.
+
+## Base de datos
+
+- Baseline: `src/main/resources/db/schema/schema.sql`.
+- Seed: `src/main/resources/db/seed/seed.sql`.
+- Idempotencia: `src/main/resources/db/schema/idempotency_operations.sql`.
+- Changelog: `src/main/resources/db/changelog-master.yaml`.
+- `spring.jpa.hibernate.ddl-auto=validate`.
+- Flyway deshabilitado por defecto.
+- El baseline es inmutable una vez aplicado; los cambios nuevos van en changesets adicionales.
+
+## CORS y secretos
+
+- Configurar `FRONTEND_ORIGIN` explícito.
+- Usar HTTPS fuera de local.
+- No versionar `.env` ni credenciales.
+- `BOOTSTRAP_ADMIN_*` es solo para la creación inicial del administrador.

@@ -24,7 +24,7 @@ public class SecurityConfig {
     SecretKeySpec key=secret(secret);
     NimbusJwtDecoder decoder=NimbusJwtDecoder.withSecretKey(key).macAlgorithm(MacAlgorithm.HS256).build();
     decoder.setJwtValidator(new org.springframework.security.oauth2.core.DelegatingOAuth2TokenValidator<>(
-      JwtValidators.createDefaultWithIssuer("gym-back"),new SessionJwtValidator(sessions)));
+      JwtValidators.createDefaultWithIssuer("branch-back"),new SessionJwtValidator(sessions)));
     return decoder;
   }
   @Bean public JwtEncoder jwtEncoder(@Value("${app.jwt.secret}") String secret) { return new NimbusJwtEncoder(new ImmutableSecret<SecurityContext>(secret(secret))); }
@@ -40,7 +40,7 @@ public class SecurityConfig {
     return http.cors(cors->{}).csrf(csrf->csrf.disable())
       .sessionManagement(s->s.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
       .authorizeHttpRequests(a->a.requestMatchers("/api/v1/health","/api/v1/auth/login","/api/v1/auth/refresh","/api/v1/auth/logout").permitAll()
-        .requestMatchers(HttpMethod.GET,"/api/v1/public/gyms/*/landing","/api/v1/public/gyms/*/checkin-config","/api/v1/public/media/*").permitAll()
+        .requestMatchers(HttpMethod.GET,"/api/v1/public/site","/api/v1/public/branches/*/checkin-config","/api/v1/public/media/*").permitAll()
         .requestMatchers("/api/v1/kiosk/**").permitAll()
         .anyRequest().authenticated())
       .oauth2ResourceServer(o->o.jwt(j->{})).addFilterBefore(kioskFilter,BearerTokenAuthenticationFilter.class).build();
