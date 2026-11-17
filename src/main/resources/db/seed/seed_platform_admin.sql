@@ -13,7 +13,10 @@ INSERT INTO ${schema_db}.users (
     'admin@gms.local',
     crypt('Admin123456789!', gen_salt('bf', 12)),
     'active'
-) ON CONFLICT (email) DO NOTHING;
+) ON CONFLICT (email) DO UPDATE
+SET password_hash = COALESCE(users.password_hash, EXCLUDED.password_hash),
+    status = CASE WHEN users.status = 'invited' THEN 'active' ELSE users.status END
+WHERE users.password_hash IS NULL OR users.status = 'invited';
 
 -- El rol global se enlaza por correo para que el changeset sea idempotente
 -- incluso si la cuenta ya existía con otro UUID.

@@ -49,8 +49,9 @@ public class ServiceFactory {
     com.gymback.modules.site.repositories.SiteSettingsRepository settings,
     com.gymback.modules.site.repositories.SiteLandingBlockRepository blocks,
     com.gymback.modules.site.repositories.SiteMediaAssetRepository media,
-    com.gymback.modules.branches.interfaces.IBranchRepository branches){
-      return new com.gymback.modules.site.services.PublicSiteService(settings,blocks,media,branches);
+    com.gymback.modules.branches.interfaces.IBranchRepository branches,
+    com.gymback.security.IIdentityRepository identity){
+      return new com.gymback.modules.site.services.PublicSiteService(settings,blocks,media,branches,identity);
   }
 
  @Bean public com.gymback.modules.members.services.MemberService memberService(

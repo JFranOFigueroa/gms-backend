@@ -7,7 +7,7 @@
 - `schema.sql`, `site_modules.sql`, `seed.sql`, `seed_platform_admin.sql` e `idempotency_operations.sql` aplicados en una base limpia.
 - Seed reejecutado sin duplicados.
 - Arranque local con `spring.jpa.hibernate.ddl-auto=validate`.
-- `AdminBootstrap` creó el administrador y lo vinculó como `owner` de “Sucursal Demo”.
+- El seed creó `admin@gms.local` con hash BCrypt y rol global; `AdminBootstrap` solo completa cuentas sin contraseña.
 - Verificación HTTP:
   - `GET /api/v1/health`.
   - `POST /api/v1/auth/login`.

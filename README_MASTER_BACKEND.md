@@ -180,7 +180,9 @@ Las ventas incluyen `items[]` con `productId`, `productName`, `quantity`, `unitP
 ## 6. Base de datos y migraciones
 
 - Baseline: `src/main/resources/db/schema/schema.sql`.
+- Módulos globales: `src/main/resources/db/schema/site_modules.sql`.
 - Seed: `src/main/resources/db/seed/seed.sql`.
+- Administrador inicial: `src/main/resources/db/seed/seed_platform_admin.sql`.
 - Idempotencia: `src/main/resources/db/schema/idempotency_operations.sql`.
 - Changelog: `src/main/resources/db/changelog-master.yaml`.
 
