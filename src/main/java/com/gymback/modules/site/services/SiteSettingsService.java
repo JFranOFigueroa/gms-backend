@@ -32,9 +32,12 @@ public class SiteSettingsService {
 
   @Transactional
   public Map<String, Object> patch(SiteSettingsPatch data) {
-    Actor actor = auth.siteAdmin();
-    SiteSettings s = repo.require();
     if (data == null) throw new DomainException("Datos de configuración obligatorios");
+    // Los módulos globales son una capacidad exclusiva del administrador del
+    // sistema; el resto de la marca también puede editarla un owner.
+    boolean moduleChange = data.modulesGlobal() != null || data.globalModules() != null;
+    Actor actor = moduleChange ? auth.platformAdmin() : auth.siteAdmin();
+    SiteSettings s = repo.require();
     if (data.siteName() != null) {
       if (data.siteName().isBlank()) throw new DomainException("El nombre del sitio es obligatorio");
       s.setSiteName(data.siteName().strip());
@@ -63,8 +66,26 @@ public class SiteSettingsService {
       s.setThemePreset(data.themePreset());
     }
     if (data.themeOverrides() != null) s.setThemeOverrides(data.themeOverrides());
+    if (data.modulesGlobal() != null) {
+      s.setModulesGlobal(data.modulesGlobal());
+      if (s.getGlobalModules() == null) s.setGlobalModules(SiteSettings.defaultGlobalModules());
+    }
+    if (data.globalModules() != null) s.setGlobalModules(mergeGlobalModules(s.getGlobalModules(), data.globalModules()));
     audit.setAuditFields(s, actor.id(), false);
     return view(repo.save(s));
+  }
+
+  private Map<String, Object> mergeGlobalModules(Map<String, Object> current, Map<String, Object> patch) {
+    Map<String, Object> merged = new LinkedHashMap<>(SiteSettings.defaultGlobalModules());
+    if (current != null) merged.putAll(current);
+    for (var entry : patch.entrySet()) {
+      if (!SiteSettings.MODULE_KEYS.contains(entry.getKey()))
+        throw new DomainException("Módulo inválido: " + entry.getKey());
+      if (!(entry.getValue() instanceof Boolean))
+        throw new DomainException("El estado del módulo debe ser booleano");
+      merged.put(entry.getKey(), entry.getValue());
+    }
+    return merged;
   }
 
   private Map<String, Object> view(SiteSettings s) {
@@ -81,6 +102,8 @@ public class SiteSettingsService {
     m.put("currency", s.getCurrency());
     m.put("themePreset", s.getThemePreset());
     m.put("themeOverrides", s.getThemeOverrides());
+    m.put("modulesGlobal", s.isModulesGlobal());
+    m.put("globalModules", s.getGlobalModules());
     return m;
   }
 }

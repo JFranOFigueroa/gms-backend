@@ -31,4 +31,16 @@ class StaffServiceTest {
     assertThrows(DomainException.class,()->service.change(branch,user,new StaffRequest(null,"trainer")));
     verify(accounts,never()).deactivateStaff(any(),any());
   }
+
+  @Test void hidesPlatformAdminFromStaff() {
+    var accounts=mock(IIdentityRepository.class);var auth=mock(AuthorizationService.class);
+    var staff=mock(IStaffRepository.class);
+    UUID user=UUID.randomUUID(),branch=UUID.randomUUID(),actor=UUID.randomUUID();
+    when(auth.require(eq(branch),any(String[].class))).thenReturn(new Actor(actor,true));
+    when(accounts.isPlatformAdmin(user)).thenReturn(true);
+    var service=new StaffService(auth,accounts,staff);
+    assertThrows(com.gymback.shared.exceptions.NotFoundException.class,
+      ()->service.add(branch,new StaffRequest(user,"owner")));
+    verify(accounts,never()).assignStaff(any(),any(),anyString(),any());
+  }
 }

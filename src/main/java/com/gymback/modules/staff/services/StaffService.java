@@ -19,7 +19,11 @@ public class StaffService {
   @Transactional(readOnly=true)
   public Map<String,Object> one(UUID branch,UUID user) {
     auth.require(branch,"owner");
+    if (accounts.isPlatformAdmin(user)) throw new NotFoundException("Staff no encontrado");
     return Optional.ofNullable(repo.get(branch,user)).orElseThrow(()->new NotFoundException("Staff no encontrado"));
+  }
+  private void ensureVisible(UUID user) {
+    if (accounts.isPlatformAdmin(user)) throw new NotFoundException("Staff no encontrado");
   }
   private void verifyRole(UUID branch,String role) {
     if (!Set.of("trainer","owner").contains(role)) throw new DomainException("Rol no permitido");
@@ -31,6 +35,7 @@ public class StaffService {
   public Map<String,Object> add(UUID branch,StaffRequest d) {
     if(d==null || d.userId()==null || d.role()==null) throw new DomainException("userId y role son obligatorios");
     verifyRole(branch,d.role());
+    ensureVisible(d.userId());
     var user=accounts.findCredentialsById(d.userId())
       .orElseThrow(()->new DomainException("Usuario global no encontrado"));
     if(!"active".equals(user.status())) throw new DomainException("Solo se vinculan usuarios globales activos");
@@ -42,6 +47,7 @@ public class StaffService {
   @Transactional
   public Map<String,Object> change(UUID branch,UUID id,StaffRequest d) {
     auth.require(branch,"owner");
+    ensureVisible(id);
     if(d==null || d.role()==null) throw new DomainException("role obligatorio");
     if(d.userId()!=null) throw new DomainException("No es posible cambiar userId desde staff");
     Set<String> roles=accounts.activeStaffRoles(id,branch);
@@ -59,6 +65,7 @@ public class StaffService {
   @Transactional
   public void remove(UUID branch,UUID id) {
     auth.require(branch,"owner");
+    ensureVisible(id);
     Set<String> roles=accounts.activeStaffRoles(id,branch);
     if(roles.isEmpty()) throw new NotFoundException("Staff no encontrado");
     // Un owner normal no puede desactivar a otro owner, incluso con múltiples roles.

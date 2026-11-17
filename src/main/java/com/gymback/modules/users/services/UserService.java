@@ -35,11 +35,17 @@ public class UserService {
     if(status!=null&&!Set.of("active","disabled","invited").contains(status))throw new DomainException("status inválido");
     return Map.of("items",repo.list(query,status,limit,offset),"total",repo.count(query,status),"offset",offset,"limit",limit);
   }
-  @Transactional(readOnly=true) public Map<String,Object> one(UUID id){admin();return repo.byId(id).orElseThrow(()->new NotFoundException("Usuario no encontrado"));}
+  @Transactional(readOnly=true) public Map<String,Object> one(UUID id){admin();
+    if(repo.isPlatformAdmin(id))throw new NotFoundException("Usuario no encontrado");
+    return repo.byId(id).orElseThrow(()->new NotFoundException("Usuario no encontrado"));}
   @Transactional(readOnly=true) public Map<String,Object> search(String email,UUID branchId){
     enabled();var actor=auth.actor();
     String target=email(email);
-    if(actor.platformAdmin())return repo.byEmail(target).orElseThrow(()->new NotFoundException("Cuenta no encontrada"));
+    if(actor.platformAdmin()){
+      Map<String,Object> found=repo.byEmail(target).orElseThrow(()->new NotFoundException("Cuenta no encontrada"));
+      if(repo.isPlatformAdmin((UUID)found.get("id")))throw new NotFoundException("Cuenta no encontrada");
+      return found;
+    }
     if(branchId==null)throw new AccessDeniedException("branchId obligatorio para owner");
     auth.require(branchId,"owner");
     Map<String,Object> found=repo.byEmailInGym(target,branchId).orElseThrow(()->new NotFoundException("Cuenta no encontrada"));
@@ -47,6 +53,7 @@ public class UserService {
   }
   @Transactional public Map<String,Object> patch(UUID id,UserPatchRequest req){admin();
     if(req==null)throw new DomainException("Body obligatorio");
+    if(repo.isPlatformAdmin(id))throw new NotFoundException("Usuario no encontrado");
     repo.byId(id).orElseThrow(()->new NotFoundException("Usuario no encontrado"));
     String email=req.email()==null?null:email(req.email());
     if(email!=null && repo.byEmail(email).map(u->!id.equals(u.get("id"))).orElse(false))throw new ConflictException("email_already_exists","Correo ocupado");
@@ -56,11 +63,8 @@ public class UserService {
   @Transactional public Map<String,Object> status(UUID id,String status){admin();
     if(status==null || !Set.of("active","disabled").contains(status))throw new DomainException("Estado inválido");
     repo.byId(id).orElseThrow(()->new NotFoundException("Usuario no encontrado"));
-    if("disabled".equals(status) && repo.isPlatformAdmin(id)){
-      repo.lockAdminStatusChange();
-      if(repo.activeAdmins()<=1)
-        throw new ConflictException("last_admin","No se puede deshabilitar el último administrador global");
-    }
+    if(repo.isPlatformAdmin(id))
+      throw new ConflictException("platform_admin_protected","El administrador del sistema solo se gestiona fuera de la aplicación");
     return repo.status(id,status);
   }
 }

@@ -43,14 +43,16 @@ No existen landings por sucursal, `landing_publications`, `media_assets` ni ruta
 ## Base de datos
 
 - Baseline: `src/main/resources/db/schema/schema.sql`.
+- Módulos globales: `src/main/resources/db/schema/site_modules.sql`.
 - Seed idempotente: `src/main/resources/db/seed/seed.sql`.
+- Administrador inicial: `src/main/resources/db/seed/seed_platform_admin.sql`.
 - Idempotencia: `src/main/resources/db/schema/idempotency_operations.sql`.
 - Changelog: `src/main/resources/db/changelog-master.yaml`.
 - Flyway deshabilitado por defecto; el esquema se prepara con Liquibase.
 
 ## Validación
 
-- `mvn test`: 75 tests, 0 fallos, 17 omitidos.
+- `mvn test`: 78 tests, 0 fallos, 17 omitidos.
 - `KioskPostgresIntegrationTest`: 21 tests, 0 fallos, 1 omitido.
 - Esquema, seed e idempotencia aplicados en PostgreSQL 15 limpio.
 - Arranque local con `ddl-auto=validate` y `AdminBootstrap` verificado.

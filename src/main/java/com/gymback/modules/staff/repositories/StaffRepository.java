@@ -10,7 +10,9 @@ public class StaffRepository implements IStaffRepository {
   public StaffRepository(EntityManager em){this.em=em;}
   private List<Map<String,Object>> search(UUID branch,UUID user){
     String hql="select u,r.role from BranchStaffRole r join UserAccount u on u.id=r.userId " +
-      "where r.branchId=:branch and r.isActive=true and r.deletedAt is null"+(user==null?"":" and u.id=:user")+
+      "where r.branchId=:branch and r.isActive=true and r.deletedAt is null"+
+      " and not exists (select p.userId from PlatformAdminRole p where p.userId=u.id)"+
+      (user==null?"":" and u.id=:user")+
       " order by u.fullName,u.id,r.role";
     var query=em.createQuery(hql,Object[].class).setParameter("branch",branch);
     if(user!=null)query.setParameter("user",user);

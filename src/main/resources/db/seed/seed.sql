@@ -1,8 +1,9 @@
 --liquibase formatted sql
 
 -- Datos iniciales idempotentes de una instalación nueva.
--- No se incluyen contraseñas ni secretos. La cuenta administradora se crea
--- con AdminBootstrap usando BOOTSTRAP_ADMIN_EMAIL y BOOTSTRAP_ADMIN_PASSWORD.
+-- La cuenta administradora se inicializa en el changeset adicional
+-- seed_platform_admin.sql. AdminBootstrap puede complementarla con variables
+-- de entorno sin sobrescribir una contraseña ya existente.
 
 --changeset gms:seed-001
 

@@ -180,7 +180,9 @@ Las ventas incluyen `items[]` con `productId`, `productName`, `quantity`, `unitP
 ## 6. Base de datos y migraciones
 
 - Baseline: `src/main/resources/db/schema/schema.sql`.
+- Módulos globales: `src/main/resources/db/schema/site_modules.sql`.
 - Seed: `src/main/resources/db/seed/seed.sql`.
+- Administrador inicial: `src/main/resources/db/seed/seed_platform_admin.sql`.
 - Idempotencia: `src/main/resources/db/schema/idempotency_operations.sql`.
 - Changelog: `src/main/resources/db/changelog-master.yaml`.
 
@@ -231,7 +233,7 @@ Health: `GET /api/v1/health`.
 
 ## 8. Validación conocida
 
-- `mvn test`: 75 tests, 0 fallos, 17 omitidos.
+- `mvn test`: 78 tests, 0 fallos, 17 omitidos.
 - `KioskPostgresIntegrationTest` con PostgreSQL 15: 21 tests, 0 fallos, 1 omitido.
 - Esquema, seed e idempotencia aplicados en base limpia.
 - Arranque local con `ddl-auto=validate` y `AdminBootstrap` verificado.

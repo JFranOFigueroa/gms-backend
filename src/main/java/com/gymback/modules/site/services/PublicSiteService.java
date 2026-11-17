@@ -1,7 +1,10 @@
 package com.gymback.modules.site.services;
 
+import com.gymback.modules.branches.interfaces.IBranchRepository;
+import com.gymback.modules.branches.model.Branch;
 import com.gymback.modules.site.model.*;
 import com.gymback.modules.site.repositories.*;
+import com.gymback.security.IIdentityRepository;
 import org.springframework.transaction.annotation.Transactional;
 import java.util.*;
 
@@ -10,10 +13,13 @@ public class PublicSiteService {
   private final SiteSettingsRepository settings;
   private final SiteLandingBlockRepository blocks;
   private final SiteMediaAssetRepository media;
+  private final IBranchRepository branches;
+  private final IIdentityRepository identity;
 
   public PublicSiteService(SiteSettingsRepository settings, SiteLandingBlockRepository blocks,
-      SiteMediaAssetRepository media) {
-    this.settings = settings; this.blocks = blocks; this.media = media;
+      SiteMediaAssetRepository media, IBranchRepository branches, IIdentityRepository identity) {
+    this.settings = settings; this.blocks = blocks; this.media = media; this.branches = branches;
+    this.identity = identity;
   }
 
   @Transactional(readOnly = true)
@@ -54,11 +60,26 @@ public class PublicSiteService {
       assetViews.add(m);
     }
 
+    // El kiosco necesita una sucursal concreta. La landing no elige una por el
+    // visitante: expone las activas para que el selector sea explícito.
+    List<Map<String, Object>> branchViews = new ArrayList<>();
+    for (Branch b : branches.active()) {
+      // El selector solo ofrece sucursales donde el check-in está realmente
+      // habilitado, respetando tanto branch_modules como el modo global.
+      if (!identity.isModuleEnabled(b.getId(), "checkin")) continue;
+      Map<String, Object> m = new LinkedHashMap<>();
+      m.put("id", b.getId());
+      m.put("name", b.getName());
+      m.put("code", b.getCode());
+      branchViews.add(m);
+    }
+
     Map<String, Object> page = new LinkedHashMap<>();
     page.put("site", site);
     page.put("theme", theme);
     page.put("blocks", blockViews);
     page.put("mediaAssets", assetViews);
+    page.put("branches", branchViews);
     return page;
   }
 }

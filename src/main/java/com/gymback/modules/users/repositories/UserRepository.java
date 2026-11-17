@@ -21,7 +21,8 @@ public class UserRepository implements IUserRepository {
   @Override public Optional<Map<String,Object>> byEmailInGym(String email,UUID branch){
     String hql="select distinct u from UserAccount u where lower(u.email)=:email and ("+
       "exists (select m.id from BranchMember m where m.branchId=:branch and m.userId=u.id) or " +
-      "exists (select r.userId from BranchStaffRole r where r.branchId=:branch and r.userId=u.id and r.deletedAt is null))";
+      "exists (select r.userId from BranchStaffRole r where r.branchId=:branch and r.userId=u.id and r.deletedAt is null))"+
+      " and not exists (select p.userId from PlatformAdminRole p where p.userId=u.id)";
     return em.createQuery(hql,UserAccount.class).setParameter("branch",branch).setParameter("email",email.toLowerCase(Locale.ROOT))
       .getResultStream().findFirst().map(this::view);
   }
@@ -31,6 +32,7 @@ public class UserRepository implements IUserRepository {
   }
   private String filters(String query,String status){
     return "select u from UserAccount u where 1=1"+
+      " and not exists (select p.userId from PlatformAdminRole p where p.userId=u.id)"+
       (query==null || query.isBlank()?"":" and (lower(u.fullName) like :term escape '!' or lower(u.email) like :term escape '!')")+
       (status==null || status.isBlank()?"":" and u.status=:status")+" order by u.fullName,u.id";
   }

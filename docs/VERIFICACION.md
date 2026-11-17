@@ -2,12 +2,12 @@
 
 ## Comprobado en este entorno
 
-- `mvn test`: 75 tests, 0 fallos, 17 omitidos.
+- `mvn test`: 78 tests, 0 fallos, 17 omitidos.
 - `KioskPostgresIntegrationTest` con PostgreSQL 15: 21 tests, 0 fallos, 1 omitido.
-- `schema.sql`, `seed.sql` e `idempotency_operations.sql` aplicados en una base limpia.
+- `schema.sql`, `site_modules.sql`, `seed.sql`, `seed_platform_admin.sql` e `idempotency_operations.sql` aplicados en una base limpia.
 - Seed reejecutado sin duplicados.
 - Arranque local con `spring.jpa.hibernate.ddl-auto=validate`.
-- `AdminBootstrap` creó el administrador y lo vinculó como `owner` de “Sucursal Demo”.
+- El seed creó `admin@gms.local` con hash BCrypt y rol global; `AdminBootstrap` solo completa cuentas sin contraseña.
 - Verificación HTTP:
   - `GET /api/v1/health`.
   - `POST /api/v1/auth/login`.

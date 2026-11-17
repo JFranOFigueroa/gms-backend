@@ -258,7 +258,17 @@ class KioskPostgresIntegrationTest {
   Member m=member("active");assertStatus(200,call("GET",root+"/reservations/me",null,m.token(),null,null));
   assertStatus(200,call("GET",root+"/members/me",null,m.token(),null,null));
   assertStatus(404,call("GET","/public/media/"+UUID.randomUUID(),null,null,null,null));
-  assertStatus(200,call("GET","/public/site",null,null,null,null));
+  var publicSite=call("GET","/public/site",null,null,null,null);assertStatus(200,publicSite);
+  assertTrue(body(publicSite).path("branches").isArray());
+  assertTrue(body(publicSite).path("branches").size()>=1);
+  assertFalse(body(publicSite).path("branches").get(0).path("code").asText().isBlank());
+  db.update("update branch_modules set enabled=false where branch_id=? and module_key='checkin'",branch);
+  var withoutCheckin=body(call("GET","/public/site",null,null,null,null));
+  boolean listed=false;
+  for(var candidate:withoutCheckin.path("branches"))
+    if(branch.toString().equals(candidate.path("id").asText()))listed=true;
+  assertFalse(listed);
+  db.update("update branch_modules set enabled=true where branch_id=? and module_key='checkin'",branch);
  }
  @Test @EnabledIfEnvironmentVariable(named="GMS_TEST_BROWSER_FRONTEND",matches=".+")
  void chromeRunsActualFrontendActivationAndReload() throws Exception {
