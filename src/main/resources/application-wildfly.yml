@@ -5,3 +5,6 @@ spring:
   flyway:
     # El esquema lo gestiona Liquibase fuera de la aplicación.
     enabled: false
+  liquibase:
+    # En WildFly las migraciones siguen siendo externas a la aplicación.
+    enabled: false

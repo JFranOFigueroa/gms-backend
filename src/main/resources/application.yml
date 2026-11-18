@@ -17,10 +17,20 @@ spring:
         default_schema: ${schema_db:${SCHEMA_DB:test}}
         jdbc:
           time_zone: UTC
+  liquibase:
+    # Elegir solo un migrador por despliegue; en local Liquibase es el predeterminado.
+    enabled: ${LIQUIBASE_ENABLED:true}
+    change-log: classpath:db/changelog-master.yaml
+    default-schema: ${schema_db:${SCHEMA_DB:test}}
+    parameters:
+      schema_db: ${schema_db:${SCHEMA_DB:test}}
   flyway:
-    # La base de datos se gestiona con Liquibase. Flyway solo se habilita en el test de integración.
+    # Para Flyway: LOCAL_FLYWAY_ENABLED=true y LIQUIBASE_ENABLED=false.
     enabled: false
-    baseline-on-migrate: false
+    locations: classpath:db/migration
+    # Solo para bases previamente inicializadas sin flyway_schema_history:
+    # habilitar de forma explícita tras revisar el baseline real.
+    baseline-on-migrate: ${FLYWAY_BASELINE_ON_MIGRATE:false}
     default-schema: ${schema_db:${SCHEMA_DB:test}}
     schemas: ${schema_db:${SCHEMA_DB:test}}
     create-schemas: true

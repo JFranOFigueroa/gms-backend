@@ -14,3 +14,9 @@ databaseChangeLog:
   - include:
       file: schema/idempotency_operations.sql
       relativeToChangelogFile: true
+  - include:
+      file: schema/branch_admin_plans.sql
+      relativeToChangelogFile: true
+  - include:
+      file: seed/seed_branch_admin_plans.sql
+      relativeToChangelogFile: true

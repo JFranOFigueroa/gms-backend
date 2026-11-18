@@ -8,6 +8,11 @@ public class ServiceFactory {
     com.gymback.modules.branches.interfaces.IBranchRepository repo,AuditService audit,AuthorizationService auth){
       return new com.gymback.modules.branches.services.BranchService(repo,audit,auth);
   }
+  @Bean public com.gymback.modules.adminplans.services.AdminPlanService adminPlanService(
+    com.gymback.modules.adminplans.interfaces.IAdminPlanRepository repo,
+    AuditService audit, AuthorizationService auth) {
+      return new com.gymback.modules.adminplans.services.AdminPlanService(repo, audit, auth);
+  }
   @Bean public com.gymback.modules.plans.services.MembershipPlanService membershipPlanService(
     com.gymback.modules.plans.interfaces.IMembershipPlanRepository repo,AuditService audit,AuthorizationService auth){
       return new com.gymback.modules.plans.services.MembershipPlanService(repo,audit,auth);
