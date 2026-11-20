@@ -13,6 +13,8 @@ public class PaymentEntry extends AuditedRecord {
   @Column(name="branch_id") public UUID branchId;
   @Column(name="member_id") public UUID memberId;
   @Column(name="subscription_id") public UUID subscriptionId;
+  @Column(name="plan_id") public UUID planId;
+  @Column(name="admin_plan_id") public UUID adminPlanId;
   @Column(name="amount") public BigDecimal amount;
   @Column(name="method") public String method;
   @Column(name="concept") public String concept = "membership";

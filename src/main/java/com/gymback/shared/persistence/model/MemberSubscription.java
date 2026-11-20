@@ -13,6 +13,7 @@ public class MemberSubscription extends AuditedRecord {
   @Column(name="branch_id") public UUID branchId;
   @Column(name="member_id") public UUID memberId;
   @Column(name="plan_id") public UUID planId;
+  @Column(name="admin_plan_id") public UUID adminPlanId;
   @Column(name="started_on") public LocalDate startedOn;
   @Column(name="next_due_date") public LocalDate nextDueDate;
   @Column(name="last_payment_date") public LocalDate lastPaymentDate;
